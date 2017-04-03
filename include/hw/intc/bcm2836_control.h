@@ -5,6 +5,8 @@
  * Rasperry Pi 2 emulation and refactoring Copyright (c) 2015, Microsoft
  * Written by Andrew Baumann
  *
+ * Merge into QEMU root fork John Bradley April 2017
+ *
  * This code is licensed under the GNU GPLv2 and later.
  */
 

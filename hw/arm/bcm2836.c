@@ -28,6 +28,7 @@ static void bcm2836_init(Object *obj)
     BCM2836State *s = BCM2836(obj);
     int n;
 
+  
     for (n = 0; n < BCM2836_NCPUS; n++) {
         object_initialize(&s->cpus[n], sizeof(s->cpus[n]),
                           "cortex-a15-" TYPE_ARM_CPU);
@@ -106,6 +107,10 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
         /* Mirror bcm2836, which has clusterid set to 0xf
          * TODO: this should be converted to a property of ARM_CPU
          */
+
+//        object_property_set_int(OBJECT(&s->cpus[n]), 0xF00 | n,
+//                                 "mp_affinity", &err);
+
         s->cpus[n].mp_affinity = 0xF00 | n;
 
         /* set periphbase/CBAR value for CPU-local registers */

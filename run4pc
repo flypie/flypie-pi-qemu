@@ -1,0 +1,16 @@
+#!/bin/bash -x
+# Don't build in the QEMU source directory. Using a subdirectory is better.
+# Here is an example of a debug build.
+
+SRC_PATH=$PWD
+cd /cygdrive/C/qemu4pc/qemu
+
+
+# /cygdrive/C/cygwin64/home/John-Bradley/qemu-raspi/arm-softmmu/qemu-system-arm.exe -M versatilepb -cpu arm1176 -hda 2012-07-15-wheezy-raspbian.img -kernel kernel-qemu -m 192 -append "root=/dev/sda2"
+# /cygdrive/C/cygwin64/home/John-Bradley/qemu-raspi/arm-softmmu/qemu-system-arm.exe -M versatilepb -cpu arm1176 -hda 2012-07-15-wheezy-raspbian.img -kernel kernel-qemu-3.10.25-wheezy -m 192 -append "root=/dev/sda2"
+
+$SRC_PATH/arm-softmmu/qemu-system-arm.exe -M versatilepb -kernel zImage.integrator -initrd arm_root.img -nographic -append "console=ttyAMA0"
+
+
+#/cygdrive/C/qemu4pc/qemu/qemu-system-arm.exe -M versatilepb -kernel zImage.integrator -initrd arm_root.img 
+
