@@ -148,7 +148,8 @@ static void raspi1_init(MachineState *machine)
     /* Setup the SOC */
     object_property_add_const_link(OBJECT(&s->soc), "ram", OBJECT(&s->ram),
                                    &error_abort);
-
+    object_property_set_int(OBJECT(&s->soc), smp_cpus, "enabled-cpus",
+                            &error_abort);
     object_property_set_int(OBJECT(&s->soc), 0xa21041, "board-rev",
                             &error_abort);
     object_property_set_bool(OBJECT(&s->soc), true, "realized", &error_abort);
@@ -223,7 +224,7 @@ static void raspi1_machine_init(MachineClass *mc)
     mc->no_parallel = 1;
     mc->no_floppy = 1;
     mc->no_cdrom = 1;
-    mc->max_cpus = 1;
+    mc->max_cpus = BCM2835_NCPUS;
     mc->default_ram_size = 512 * 1024 * 1024;
 };
 DEFINE_MACHINE("raspi1", raspi1_machine_init)

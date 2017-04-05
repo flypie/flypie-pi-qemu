@@ -10,10 +10,14 @@
     <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="0"/>
     <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
         <group>
+            <file>file:/C:/cygwin64/home/John-Bradley/qemu-master/qom/object.c</file>
+            <file>file:/C:/cygwin64/home/John-Bradley/qemu-master/qom/qom-qobject.c</file>
             <file>file:/C:/cygwin64/home/John-Bradley/qemu-master/hw/arm/raspi.c</file>
-            <file>file:/C:/cygwin64/home/John-Bradley/qemu-master/pi1run.bat</file>
+            <file>file:/C:/cygwin64/home/John-Bradley/qemu-master/target/arm/cpu.c</file>
             <file>file:/C:/cygwin64/home/John-Bradley/qemu-master/hw/arm/bcm2836.c</file>
-            <file>file:/C:/cygwin64/home/John-Bradley/qemu-master/include/hw/arm/bcm2835.h</file>
+            <file>file:/C:/cygwin64/home/John-Bradley/qemu-master/util/qemu-error.c</file>
+            <file>file:/C:/cygwin64/home/John-Bradley/qemu-master/hw/core/qdev.c</file>
+            <file>file:/C:/cygwin64/home/John-Bradley/qemu-master/hw/arm/bcm2835.c</file>
         </group>
     </open-files>
 </project-private>

@@ -28,6 +28,7 @@ static void bcm2836_init(Object *obj)
     BCM2836State *s = BCM2836(obj);
     int n;
 
+//    cpu = MICROBLAZE_CPU(object_new(TYPE_MICROBLAZE_CPU));
   
     for (n = 0; n < BCM2836_NCPUS; n++) {
         object_initialize(&s->cpus[n], sizeof(s->cpus[n]),

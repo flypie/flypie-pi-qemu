@@ -21,15 +21,17 @@
 #define TYPE_BCM2835 "bcm2835"
 #define BCM2835(obj) OBJECT_CHECK(BCM2835State, (obj), TYPE_BCM2835)
 
+#define BCM2835_NCPUS 1
 
 typedef struct BCM2835State {
     /*< private >*/
     DeviceState parent_obj;
     /*< public >*/
- 
-    ARMCPU cpu;
 
-    BCM2835PeripheralState  peripherals;
+    uint32_t enabled_cpus;
+    ARMCPU cpus[BCM2835_NCPUS];
+    
+    BCM2835PeripheralState peripherals;
 } BCM2835State;
 
 #endif /* BCM2835_H */

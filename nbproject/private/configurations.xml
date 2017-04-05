@@ -46,15 +46,113 @@
         <df name="debug">
           <df name="x86_64-w64-mingw64">
             <df name="aarch64-softmmu">
+              <df name="fpu">
+              </df>
+              <df name="hw">
+                <df name="adc">
+                </df>
+                <df name="arm">
+                </df>
+                <df name="block">
+                  <df name="dataplane">
+                  </df>
+                </df>
+                <df name="char">
+                </df>
+                <df name="core">
+                </df>
+                <df name="cpu">
+                </df>
+                <df name="display">
+                </df>
+                <df name="dma">
+                </df>
+                <df name="gpio">
+                </df>
+                <df name="i2c">
+                </df>
+                <df name="input">
+                </df>
+                <df name="intc">
+                </df>
+                <df name="misc">
+                </df>
+                <df name="net">
+                </df>
+                <df name="pcmcia">
+                </df>
+                <df name="scsi">
+                </df>
+                <df name="sd">
+                </df>
+                <df name="ssi">
+                </df>
+                <df name="timer">
+                </df>
+                <df name="usb">
+                </df>
+                <df name="virtio">
+                </df>
+              </df>
+              <df name="migration">
+              </df>
+              <df name="target">
+                <df name="arm">
+                </df>
+              </df>
+              <df name="tcg">
+              </df>
               <df name="trace">
                 <in>generated-helpers.c</in>
               </df>
+              <in>config-target.h</in>
               <in>gdbstub-xml.c</in>
+              <in>hmp-commands-info.h</in>
+              <in>hmp-commands.h</in>
             </df>
             <df name="alpha-softmmu">
+              <df name="fpu">
+              </df>
+              <df name="hw">
+                <df name="alpha">
+                </df>
+                <df name="block">
+                  <df name="dataplane">
+                  </df>
+                </df>
+                <df name="char">
+                </df>
+                <df name="core">
+                </df>
+                <df name="cpu">
+                </df>
+                <df name="display">
+                </df>
+                <df name="misc">
+                </df>
+                <df name="net">
+                </df>
+                <df name="scsi">
+                </df>
+                <df name="timer">
+                </df>
+                <df name="virtio">
+                </df>
+              </df>
+              <df name="migration">
+              </df>
+              <df name="target">
+                <df name="alpha">
+                </df>
+              </df>
+              <df name="tcg">
+              </df>
               <df name="trace">
                 <in>generated-helpers.c</in>
               </df>
+              <in>config-target.h</in>
+              <in>hmp-commands-info.h</in>
+              <in>hmp-commands.h</in>
             </df>
             <df name="arm-softmmu">
               <df name="fpu">
@@ -135,6 +233,8 @@
             </df>
             <df name="chardev">
             </df>
+            <df name="config-temp">
+            </df>
             <df name="contrib">
               <df name="ivshmem-client">
               </df>
@@ -144,9 +244,34 @@
               </df>
             </df>
             <df name="cris-softmmu">
+              <df name="fpu">
+              </df>
+              <df name="hw">
+                <df name="core">
+                </df>
+                <df name="cpu">
+                </df>
+                <df name="cris">
+                </df>
+                <df name="net">
+                  <df name="rocker">
+                  </df>
+                </df>
+              </df>
+              <df name="migration">
+              </df>
+              <df name="target">
+                <df name="cris">
+                </df>
+              </df>
+              <df name="tcg">
+              </df>
               <df name="trace">
                 <in>generated-helpers.c</in>
               </df>
+              <in>config-target.h</in>
+              <in>hmp-commands-info.h</in>
+              <in>hmp-commands.h</in>
             </df>
             <df name="crypto">
               <in>trace.c</in>
@@ -244,6 +369,8 @@
               </df>
               <df name="ipack">
               </df>
+              <df name="ipmi">
+              </df>
               <df name="isa">
                 <in>trace.c</in>
                 <in>trace.h</in>
@@ -253,6 +380,8 @@
                 <in>trace.h</in>
               </df>
               <df name="misc">
+                <df name="macio">
+                </df>
                 <in>trace.c</in>
                 <in>trace.h</in>
               </df>
@@ -304,6 +433,8 @@
                 <in>trace.c</in>
                 <in>trace.h</in>
               </df>
+              <df name="tpm">
+              </df>
               <df name="usb">
                 <in>trace.c</in>
                 <in>trace.h</in>
@@ -324,9 +455,52 @@
               </df>
             </df>
             <df name="i386-softmmu">
+              <df name="fpu">
+              </df>
+              <df name="hw">
+                <df name="block">
+                  <df name="dataplane">
+                  </df>
+                </df>
+                <df name="char">
+                </df>
+                <df name="core">
+                </df>
+                <df name="cpu">
+                </df>
+                <df name="display">
+                </df>
+                <df name="i386">
+                </df>
+                <df name="intc">
+                </df>
+                <df name="isa">
+                </df>
+                <df name="misc">
+                </df>
+                <df name="net">
+                </df>
+                <df name="scsi">
+                </df>
+                <df name="timer">
+                </df>
+                <df name="virtio">
+                </df>
+              </df>
+              <df name="migration">
+              </df>
+              <df name="target">
+                <df name="i386">
+                </df>
+              </df>
+              <df name="tcg">
+              </df>
               <df name="trace">
                 <in>generated-helpers.c</in>
               </df>
+              <in>config-target.h</in>
+              <in>hmp-commands-info.h</in>
+              <in>hmp-commands.h</in>
             </df>
             <df name="io">
               <in>trace.c</in>
@@ -337,54 +511,355 @@
               <in>trace.h</in>
             </df>
             <df name="lm32-softmmu">
+              <df name="fpu">
+              </df>
+              <df name="hw">
+                <df name="core">
+                </df>
+                <df name="cpu">
+                </df>
+                <df name="input">
+                </df>
+                <df name="lm32">
+                </df>
+                <df name="misc">
+                </df>
+                <df name="net">
+                  <df name="rocker">
+                  </df>
+                </df>
+                <df name="sd">
+                </df>
+              </df>
+              <df name="migration">
+              </df>
+              <df name="target">
+                <df name="lm32">
+                </df>
+              </df>
+              <df name="tcg">
+              </df>
               <df name="trace">
                 <in>generated-helpers.c</in>
               </df>
+              <in>config-target.h</in>
+              <in>hmp-commands-info.h</in>
+              <in>hmp-commands.h</in>
             </df>
             <df name="m68k-softmmu">
+              <df name="fpu">
+              </df>
+              <df name="hw">
+                <df name="char">
+                </df>
+                <df name="core">
+                </df>
+                <df name="cpu">
+                </df>
+                <df name="m68k">
+                </df>
+                <df name="net">
+                  <df name="rocker">
+                  </df>
+                </df>
+              </df>
+              <df name="migration">
+              </df>
+              <df name="target">
+                <df name="m68k">
+                </df>
+              </df>
+              <df name="tcg">
+              </df>
               <df name="trace">
                 <in>generated-helpers.c</in>
               </df>
+              <in>config-target.h</in>
               <in>gdbstub-xml.c</in>
+              <in>hmp-commands-info.h</in>
+              <in>hmp-commands.h</in>
             </df>
             <df name="microblaze-softmmu">
+              <df name="fpu">
+              </df>
+              <df name="hw">
+                <df name="core">
+                </df>
+                <df name="cpu">
+                </df>
+                <df name="microblaze">
+                </df>
+                <df name="net">
+                  <df name="rocker">
+                  </df>
+                </df>
+              </df>
+              <df name="migration">
+              </df>
+              <df name="target">
+                <df name="microblaze">
+                </df>
+              </df>
+              <df name="tcg">
+              </df>
               <df name="trace">
                 <in>generated-helpers.c</in>
               </df>
+              <in>config-target.h</in>
+              <in>hmp-commands-info.h</in>
+              <in>hmp-commands.h</in>
             </df>
             <df name="microblazeel-softmmu">
+              <df name="fpu">
+              </df>
+              <df name="hw">
+                <df name="core">
+                </df>
+                <df name="cpu">
+                </df>
+                <df name="microblaze">
+                </df>
+                <df name="net">
+                  <df name="rocker">
+                  </df>
+                </df>
+              </df>
+              <df name="migration">
+              </df>
+              <df name="target">
+                <df name="microblaze">
+                </df>
+              </df>
+              <df name="tcg">
+              </df>
               <df name="trace">
                 <in>generated-helpers.c</in>
               </df>
+              <in>config-target.h</in>
+              <in>hmp-commands-info.h</in>
+              <in>hmp-commands.h</in>
             </df>
             <df name="migration">
               <in>trace.c</in>
               <in>trace.h</in>
             </df>
             <df name="mips-softmmu">
+              <df name="fpu">
+              </df>
+              <df name="hw">
+                <df name="block">
+                  <df name="dataplane">
+                  </df>
+                </df>
+                <df name="char">
+                </df>
+                <df name="core">
+                </df>
+                <df name="cpu">
+                </df>
+                <df name="display">
+                </df>
+                <df name="intc">
+                </df>
+                <df name="mips">
+                </df>
+                <df name="misc">
+                </df>
+                <df name="net">
+                </df>
+                <df name="scsi">
+                </df>
+                <df name="timer">
+                </df>
+                <df name="virtio">
+                </df>
+              </df>
+              <df name="migration">
+              </df>
+              <df name="target">
+                <df name="mips">
+                </df>
+              </df>
+              <df name="tcg">
+              </df>
               <df name="trace">
                 <in>generated-helpers.c</in>
               </df>
+              <in>config-target.h</in>
+              <in>hmp-commands-info.h</in>
+              <in>hmp-commands.h</in>
             </df>
             <df name="mips64-softmmu">
+              <df name="fpu">
+              </df>
+              <df name="hw">
+                <df name="block">
+                  <df name="dataplane">
+                  </df>
+                </df>
+                <df name="char">
+                </df>
+                <df name="core">
+                </df>
+                <df name="cpu">
+                </df>
+                <df name="display">
+                </df>
+                <df name="intc">
+                </df>
+                <df name="mips">
+                </df>
+                <df name="misc">
+                </df>
+                <df name="net">
+                </df>
+                <df name="scsi">
+                </df>
+                <df name="timer">
+                </df>
+                <df name="virtio">
+                </df>
+              </df>
+              <df name="migration">
+              </df>
+              <df name="target">
+                <df name="mips">
+                </df>
+              </df>
+              <df name="tcg">
+              </df>
               <df name="trace">
                 <in>generated-helpers.c</in>
               </df>
+              <in>config-target.h</in>
+              <in>hmp-commands-info.h</in>
+              <in>hmp-commands.h</in>
             </df>
             <df name="mips64el-softmmu">
+              <df name="fpu">
+              </df>
+              <df name="hw">
+                <df name="block">
+                  <df name="dataplane">
+                  </df>
+                </df>
+                <df name="char">
+                </df>
+                <df name="core">
+                </df>
+                <df name="cpu">
+                </df>
+                <df name="display">
+                </df>
+                <df name="intc">
+                </df>
+                <df name="mips">
+                </df>
+                <df name="misc">
+                </df>
+                <df name="net">
+                </df>
+                <df name="scsi">
+                </df>
+                <df name="timer">
+                </df>
+                <df name="virtio">
+                </df>
+              </df>
+              <df name="migration">
+              </df>
+              <df name="target">
+                <df name="mips">
+                </df>
+              </df>
+              <df name="tcg">
+              </df>
               <df name="trace">
                 <in>generated-helpers.c</in>
               </df>
+              <in>config-target.h</in>
+              <in>hmp-commands-info.h</in>
+              <in>hmp-commands.h</in>
             </df>
             <df name="mipsel-softmmu">
+              <df name="fpu">
+              </df>
+              <df name="hw">
+                <df name="block">
+                  <df name="dataplane">
+                  </df>
+                </df>
+                <df name="char">
+                </df>
+                <df name="core">
+                </df>
+                <df name="cpu">
+                </df>
+                <df name="display">
+                </df>
+                <df name="intc">
+                </df>
+                <df name="mips">
+                </df>
+                <df name="misc">
+                </df>
+                <df name="net">
+                </df>
+                <df name="scsi">
+                </df>
+                <df name="timer">
+                </df>
+                <df name="virtio">
+                </df>
+              </df>
+              <df name="migration">
+              </df>
+              <df name="target">
+                <df name="mips">
+                </df>
+              </df>
+              <df name="tcg">
+              </df>
               <df name="trace">
                 <in>generated-helpers.c</in>
               </df>
+              <in>config-target.h</in>
+              <in>hmp-commands-info.h</in>
+              <in>hmp-commands.h</in>
             </df>
             <df name="moxie-softmmu">
+              <df name="fpu">
+              </df>
+              <df name="hw">
+                <df name="core">
+                </df>
+                <df name="cpu">
+                </df>
+                <df name="display">
+                </df>
+                <df name="moxie">
+                </df>
+                <df name="net">
+                  <df name="rocker">
+                  </df>
+                </df>
+                <df name="timer">
+                </df>
+              </df>
+              <df name="migration">
+              </df>
+              <df name="target">
+                <df name="moxie">
+                </df>
+              </df>
+              <df name="tcg">
+              </df>
               <df name="trace">
                 <in>generated-helpers.c</in>
               </df>
+              <in>config-target.h</in>
+              <in>hmp-commands-info.h</in>
+              <in>hmp-commands.h</in>
             </df>
             <df name="nbd">
             </df>
@@ -393,14 +868,68 @@
               <in>trace.h</in>
             </df>
             <df name="nios2-softmmu">
+              <df name="fpu">
+              </df>
+              <df name="hw">
+                <df name="core">
+                </df>
+                <df name="cpu">
+                </df>
+                <df name="intc">
+                </df>
+                <df name="net">
+                  <df name="rocker">
+                  </df>
+                </df>
+                <df name="nios2">
+                </df>
+                <df name="timer">
+                </df>
+              </df>
+              <df name="migration">
+              </df>
+              <df name="target">
+                <df name="nios2">
+                </df>
+              </df>
+              <df name="tcg">
+              </df>
               <df name="trace">
                 <in>generated-helpers.c</in>
               </df>
+              <in>config-target.h</in>
+              <in>hmp-commands-info.h</in>
+              <in>hmp-commands.h</in>
             </df>
             <df name="or1k-softmmu">
+              <df name="fpu">
+              </df>
+              <df name="hw">
+                <df name="core">
+                </df>
+                <df name="cpu">
+                </df>
+                <df name="net">
+                  <df name="rocker">
+                  </df>
+                </df>
+                <df name="openrisc">
+                </df>
+              </df>
+              <df name="migration">
+              </df>
+              <df name="target">
+                <df name="openrisc">
+                </df>
+              </df>
+              <df name="tcg">
+              </df>
               <df name="trace">
                 <in>generated-helpers.c</in>
               </df>
+              <in>config-target.h</in>
+              <in>hmp-commands-info.h</in>
+              <in>hmp-commands.h</in>
             </df>
             <df name="pc-bios">
               <df name="optionrom">
@@ -413,22 +942,157 @@
             <df name="po">
             </df>
             <df name="ppc-softmmu">
+              <df name="fpu">
+              </df>
+              <df name="hw">
+                <df name="block">
+                  <df name="dataplane">
+                  </df>
+                </df>
+                <df name="char">
+                </df>
+                <df name="core">
+                </df>
+                <df name="cpu">
+                </df>
+                <df name="display">
+                </df>
+                <df name="misc">
+                </df>
+                <df name="net">
+                  <df name="fsl_etsec">
+                  </df>
+                </df>
+                <df name="ppc">
+                </df>
+                <df name="scsi">
+                </df>
+                <df name="timer">
+                </df>
+                <df name="virtio">
+                </df>
+              </df>
+              <df name="libdecnumber">
+                <df name="dpd">
+                </df>
+              </df>
+              <df name="migration">
+              </df>
+              <df name="target">
+                <df name="ppc">
+                </df>
+              </df>
+              <df name="tcg">
+              </df>
               <df name="trace">
                 <in>generated-helpers.c</in>
               </df>
+              <in>config-target.h</in>
               <in>gdbstub-xml.c</in>
+              <in>hmp-commands-info.h</in>
+              <in>hmp-commands.h</in>
             </df>
             <df name="ppc64-softmmu">
+              <df name="fpu">
+              </df>
+              <df name="hw">
+                <df name="block">
+                  <df name="dataplane">
+                  </df>
+                </df>
+                <df name="char">
+                </df>
+                <df name="core">
+                </df>
+                <df name="cpu">
+                </df>
+                <df name="display">
+                </df>
+                <df name="intc">
+                </df>
+                <df name="misc">
+                </df>
+                <df name="net">
+                  <df name="fsl_etsec">
+                  </df>
+                </df>
+                <df name="nvram">
+                </df>
+                <df name="ppc">
+                </df>
+                <df name="scsi">
+                </df>
+                <df name="timer">
+                </df>
+                <df name="virtio">
+                </df>
+              </df>
+              <df name="libdecnumber">
+                <df name="dpd">
+                </df>
+              </df>
+              <df name="migration">
+              </df>
+              <df name="target">
+                <df name="ppc">
+                </df>
+              </df>
+              <df name="tcg">
+              </df>
               <df name="trace">
                 <in>generated-helpers.c</in>
               </df>
+              <in>config-target.h</in>
               <in>gdbstub-xml.c</in>
+              <in>hmp-commands-info.h</in>
+              <in>hmp-commands.h</in>
             </df>
             <df name="ppcemb-softmmu">
+              <df name="fpu">
+              </df>
+              <df name="hw">
+                <df name="block">
+                  <df name="dataplane">
+                  </df>
+                </df>
+                <df name="char">
+                </df>
+                <df name="core">
+                </df>
+                <df name="cpu">
+                </df>
+                <df name="display">
+                </df>
+                <df name="misc">
+                </df>
+                <df name="net">
+                </df>
+                <df name="ppc">
+                </df>
+                <df name="scsi">
+                </df>
+                <df name="virtio">
+                </df>
+              </df>
+              <df name="libdecnumber">
+                <df name="dpd">
+                </df>
+              </df>
+              <df name="migration">
+              </df>
+              <df name="target">
+                <df name="ppc">
+                </df>
+              </df>
+              <df name="tcg">
+              </df>
               <df name="trace">
                 <in>generated-helpers.c</in>
               </df>
+              <in>config-target.h</in>
               <in>gdbstub-xml.c</in>
+              <in>hmp-commands-info.h</in>
+              <in>hmp-commands.h</in>
             </df>
             <df name="qapi">
               <in>trace.c</in>
@@ -461,32 +1125,224 @@
               </df>
             </df>
             <df name="s390x-softmmu">
+              <df name="fpu">
+              </df>
+              <df name="hw">
+                <df name="block">
+                  <df name="dataplane">
+                  </df>
+                </df>
+                <df name="char">
+                </df>
+                <df name="core">
+                </df>
+                <df name="cpu">
+                </df>
+                <df name="display">
+                </df>
+                <df name="intc">
+                </df>
+                <df name="net">
+                  <df name="rocker">
+                  </df>
+                </df>
+                <df name="s390x">
+                </df>
+                <df name="scsi">
+                </df>
+                <df name="virtio">
+                </df>
+              </df>
+              <df name="migration">
+              </df>
+              <df name="target">
+                <df name="s390x">
+                </df>
+              </df>
+              <df name="tcg">
+              </df>
               <df name="trace">
                 <in>generated-helpers.c</in>
               </df>
+              <in>config-target.h</in>
               <in>gdbstub-xml.c</in>
+              <in>gen-features.h</in>
+              <in>hmp-commands-info.h</in>
+              <in>hmp-commands.h</in>
             </df>
             <df name="sh4-softmmu">
+              <df name="fpu">
+              </df>
+              <df name="hw">
+                <df name="block">
+                  <df name="dataplane">
+                  </df>
+                </df>
+                <df name="char">
+                </df>
+                <df name="core">
+                </df>
+                <df name="cpu">
+                </df>
+                <df name="display">
+                </df>
+                <df name="intc">
+                </df>
+                <df name="misc">
+                </df>
+                <df name="net">
+                </df>
+                <df name="scsi">
+                </df>
+                <df name="sh4">
+                </df>
+                <df name="timer">
+                </df>
+                <df name="virtio">
+                </df>
+              </df>
+              <df name="migration">
+              </df>
+              <df name="target">
+                <df name="sh4">
+                </df>
+              </df>
+              <df name="tcg">
+              </df>
               <df name="trace">
                 <in>generated-helpers.c</in>
               </df>
+              <in>config-target.h</in>
+              <in>hmp-commands-info.h</in>
+              <in>hmp-commands.h</in>
             </df>
             <df name="sh4eb-softmmu">
+              <df name="fpu">
+              </df>
+              <df name="hw">
+                <df name="block">
+                  <df name="dataplane">
+                  </df>
+                </df>
+                <df name="char">
+                </df>
+                <df name="core">
+                </df>
+                <df name="cpu">
+                </df>
+                <df name="display">
+                </df>
+                <df name="intc">
+                </df>
+                <df name="misc">
+                </df>
+                <df name="net">
+                </df>
+                <df name="scsi">
+                </df>
+                <df name="sh4">
+                </df>
+                <df name="timer">
+                </df>
+                <df name="virtio">
+                </df>
+              </df>
+              <df name="migration">
+              </df>
+              <df name="target">
+                <df name="sh4">
+                </df>
+              </df>
+              <df name="tcg">
+              </df>
               <df name="trace">
                 <in>generated-helpers.c</in>
               </df>
+              <in>config-target.h</in>
+              <in>hmp-commands-info.h</in>
+              <in>hmp-commands.h</in>
             </df>
             <df name="slirp">
             </df>
             <df name="sparc-softmmu">
+              <df name="fpu">
+              </df>
+              <df name="hw">
+                <df name="core">
+                </df>
+                <df name="cpu">
+                </df>
+                <df name="display">
+                </df>
+                <df name="intc">
+                </df>
+                <df name="misc">
+                </df>
+                <df name="net">
+                  <df name="rocker">
+                  </df>
+                </df>
+                <df name="sparc">
+                </df>
+              </df>
+              <df name="migration">
+              </df>
+              <df name="target">
+                <df name="sparc">
+                </df>
+              </df>
+              <df name="tcg">
+              </df>
               <df name="trace">
                 <in>generated-helpers.c</in>
               </df>
+              <in>config-target.h</in>
+              <in>hmp-commands-info.h</in>
+              <in>hmp-commands.h</in>
             </df>
             <df name="sparc64-softmmu">
+              <df name="fpu">
+              </df>
+              <df name="hw">
+                <df name="block">
+                  <df name="dataplane">
+                  </df>
+                </df>
+                <df name="char">
+                </df>
+                <df name="core">
+                </df>
+                <df name="cpu">
+                </df>
+                <df name="display">
+                </df>
+                <df name="misc">
+                </df>
+                <df name="net">
+                </df>
+                <df name="scsi">
+                </df>
+                <df name="sparc64">
+                </df>
+                <df name="timer">
+                </df>
+                <df name="virtio">
+                </df>
+              </df>
+              <df name="migration">
+              </df>
+              <df name="target">
+                <df name="sparc">
+                </df>
+              </df>
+              <df name="tcg">
+              </df>
               <df name="trace">
                 <in>generated-helpers.c</in>
               </df>
+              <in>config-target.h</in>
+              <in>hmp-commands-info.h</in>
+              <in>hmp-commands.h</in>
             </df>
             <df name="stubs">
             </df>
@@ -546,37 +1402,180 @@
               <in>generated-tcg-tracers.h</in>
             </df>
             <df name="tricore-softmmu">
+              <df name="fpu">
+              </df>
+              <df name="hw">
+                <df name="core">
+                </df>
+                <df name="cpu">
+                </df>
+                <df name="net">
+                  <df name="rocker">
+                  </df>
+                </df>
+                <df name="tricore">
+                </df>
+              </df>
+              <df name="migration">
+              </df>
+              <df name="target">
+                <df name="tricore">
+                </df>
+              </df>
+              <df name="tcg">
+              </df>
               <df name="trace">
                 <in>generated-helpers.c</in>
               </df>
+              <in>config-target.h</in>
+              <in>hmp-commands-info.h</in>
+              <in>hmp-commands.h</in>
             </df>
             <df name="ui">
               <in>trace.c</in>
               <in>trace.h</in>
             </df>
             <df name="unicore32-softmmu">
+              <df name="fpu">
+              </df>
+              <df name="hw">
+                <df name="core">
+                </df>
+                <df name="cpu">
+                </df>
+                <df name="net">
+                  <df name="rocker">
+                  </df>
+                </df>
+                <df name="unicore32">
+                </df>
+              </df>
+              <df name="migration">
+              </df>
+              <df name="target">
+                <df name="unicore32">
+                </df>
+              </df>
+              <df name="tcg">
+              </df>
               <df name="trace">
                 <in>generated-helpers.c</in>
               </df>
+              <in>config-target.h</in>
+              <in>hmp-commands-info.h</in>
+              <in>hmp-commands.h</in>
             </df>
             <df name="util">
               <in>trace.c</in>
               <in>trace.h</in>
             </df>
             <df name="x86_64-softmmu">
+              <df name="fpu">
+              </df>
+              <df name="hw">
+                <df name="block">
+                  <df name="dataplane">
+                  </df>
+                </df>
+                <df name="char">
+                </df>
+                <df name="core">
+                </df>
+                <df name="cpu">
+                </df>
+                <df name="display">
+                </df>
+                <df name="i386">
+                </df>
+                <df name="intc">
+                </df>
+                <df name="isa">
+                </df>
+                <df name="misc">
+                </df>
+                <df name="net">
+                </df>
+                <df name="scsi">
+                </df>
+                <df name="timer">
+                </df>
+                <df name="virtio">
+                </df>
+              </df>
+              <df name="migration">
+              </df>
+              <df name="target">
+                <df name="i386">
+                </df>
+              </df>
+              <df name="tcg">
+              </df>
               <df name="trace">
                 <in>generated-helpers.c</in>
               </df>
+              <in>config-target.h</in>
+              <in>hmp-commands-info.h</in>
+              <in>hmp-commands.h</in>
             </df>
             <df name="xtensa-softmmu">
+              <df name="fpu">
+              </df>
+              <df name="hw">
+                <df name="core">
+                </df>
+                <df name="cpu">
+                </df>
+                <df name="net">
+                  <df name="rocker">
+                  </df>
+                </df>
+                <df name="xtensa">
+                </df>
+              </df>
+              <df name="migration">
+              </df>
+              <df name="target">
+                <df name="xtensa">
+                </df>
+              </df>
+              <df name="tcg">
+              </df>
               <df name="trace">
                 <in>generated-helpers.c</in>
               </df>
+              <in>config-target.h</in>
+              <in>hmp-commands-info.h</in>
+              <in>hmp-commands.h</in>
             </df>
             <df name="xtensaeb-softmmu">
+              <df name="fpu">
+              </df>
+              <df name="hw">
+                <df name="core">
+                </df>
+                <df name="cpu">
+                </df>
+                <df name="net">
+                  <df name="rocker">
+                  </df>
+                </df>
+                <df name="xtensa">
+                </df>
+              </df>
+              <df name="migration">
+              </df>
+              <df name="target">
+                <df name="xtensa">
+                </df>
+              </df>
+              <df name="tcg">
+              </df>
               <df name="trace">
                 <in>generated-helpers.c</in>
               </df>
+              <in>config-target.h</in>
+              <in>hmp-commands-info.h</in>
+              <in>hmp-commands.h</in>
             </df>
             <in>config-host.h</in>
             <in>module_block.h</in>
