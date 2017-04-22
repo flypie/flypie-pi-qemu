@@ -148,8 +148,8 @@ static void raspi1_init(MachineState *machine)
     /* Setup the SOC */
     object_property_add_const_link(OBJECT(&s->soc), "ram", OBJECT(&s->ram),
                                    &error_abort);
-    object_property_set_int(OBJECT(&s->soc), smp_cpus, "enabled-cpus",
-                            &error_abort);
+//   object_property_set_int(OBJECT(&s->soc), smp_cpus, "enabled-cpus",
+//                            &error_abort);
     object_property_set_int(OBJECT(&s->soc), 0xa21041, "board-rev",
                             &error_abort);
     object_property_set_bool(OBJECT(&s->soc), true, "realized", &error_abort);
@@ -168,7 +168,7 @@ static void raspi1_init(MachineState *machine)
 
     vcram_size = object_property_get_int(OBJECT(&s->soc), "vcram-size",
                                          &error_abort);
-    setup_boot(machine, 2, machine->ram_size - vcram_size);
+    setup_boot(machine, 1, machine->ram_size - vcram_size);
 }
 static void raspi2_init(MachineState *machine)
 {
