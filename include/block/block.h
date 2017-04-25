@@ -434,6 +434,8 @@ int bdrv_is_allocated_above(BlockDriverState *top, BlockDriverState *base,
                             int64_t sector_num, int nb_sectors, int *pnum);
 
 bool bdrv_is_read_only(BlockDriverState *bs);
+int bdrv_can_set_read_only(BlockDriverState *bs, bool read_only, Error **errp);
+int bdrv_set_read_only(BlockDriverState *bs, bool read_only, Error **errp);
 bool bdrv_is_sg(BlockDriverState *bs);
 bool bdrv_is_inserted(BlockDriverState *bs);
 int bdrv_media_changed(BlockDriverState *bs);
@@ -509,7 +511,7 @@ int bdrv_load_vmstate(BlockDriverState *bs, uint8_t *buf,
 void bdrv_img_create(const char *filename, const char *fmt,
                      const char *base_filename, const char *base_fmt,
                      char *options, uint64_t img_size, int flags,
-                     Error **errp, bool quiet);
+                     bool quiet, Error **errp);
 
 /* Returns the alignment in bytes that is required so that no bounce buffer
  * is required throughout the stack */
