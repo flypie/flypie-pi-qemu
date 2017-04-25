@@ -19,6 +19,8 @@
 #include "hw/sd/sd.h"
 #include "hw/gpio/bcm2835_gpio.h"
 
+
+
 #define GPFSEL0   0x00
 #define GPFSEL1   0x04
 #define GPFSEL2   0x08
@@ -141,11 +143,19 @@ static void gpclr(BCM2835GpioState *s,
     *lev &= ~val;
 }
 
-static uint64_t bcm2835_gpio_read(void *opaque, hwaddr offset,
-        unsigned size)
+
+
+static uint64_t bcm2835_gpio_read(void *opaque, hwaddr offset,unsigned size)
 {
     BCM2835GpioState *s = (BCM2835GpioState *)opaque;
-
+    
+    int Data[32];
+    
+    if(s->panel.socket!=-1)
+    {
+        panel_read(&s->panel,(void *)&Data,sizeof(Data));
+    }
+    
     switch (offset) {
     case GPFSEL0:
     case GPFSEL1:
@@ -198,6 +208,11 @@ static void bcm2835_gpio_write(void *opaque, hwaddr offset,
         uint64_t value, unsigned size)
 {
     BCM2835GpioState *s = (BCM2835GpioState *)opaque;
+    
+    if(s->panel.socket!=-1)
+    {
+        panel_write(&s->panel,offset/4,(char)value); //John Bradley dummy GPIO Panel
+    }    
 
     switch (offset) {
     case GPFSEL0:
@@ -303,6 +318,18 @@ static void bcm2835_gpio_init(Object *obj)
             &bcm2835_gpio_ops, s, "bcm2835_gpio", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
     qdev_init_gpio_out(dev, s->out, 54);
+    
+      int err;
+      
+  /* Get access to the GPIO panel, program will quit on fail */
+  err = panel_open(&s->panel);
+  if (err)
+  {
+     printf("Couldn't connect to a GPIO panel\n"); //John Bradley dummy GPIO Panel
+  }    
+  else
+  {      
+  }
 }
 
 static void bcm2835_gpio_realize(DeviceState *dev, Error **errp)

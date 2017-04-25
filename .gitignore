@@ -1,4 +1,5 @@
 /bin/*
+/nbproject/*
 /config-devices.*
 /config-all-devices.*
 /config-all-disas.*
@@ -187,3 +188,31 @@ nbproject/private/private.xml
 nbproject/configurations.xml
 
 nbproject/configurations.xml
+
+gitupdatefrommain
+
+hw/gpio/rdc-gpio - Copy.ori
+
+nbproject/configurations.xml
+
+nbproject/configurations.xml
+
+nbproject/project.xml
+
+nbproject/project.xml
+
+nbproject/private/private.xml
+
+nbproject/private/configurations.xml
+
+nbproject/configurations.xml
+
+nbproject/project.xml
+
+nbproject/private/private.xml
+
+.cproject
+
+.project
+
+nbproject/project.xml
