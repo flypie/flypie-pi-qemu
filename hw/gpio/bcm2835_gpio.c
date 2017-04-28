@@ -149,13 +149,8 @@ static uint64_t bcm2835_gpio_read(void *opaque, hwaddr offset,unsigned size)
 {
     BCM2835GpioState *s = (BCM2835GpioState *)opaque;
     
-    int Data[32];
-    
-    if(s->panel.socket!=-1)
-    {
-        panel_read(&s->panel,(void *)&Data,sizeof(Data));
-    }
-    
+    uint64_t Data;
+        
     switch (offset) {
     case GPFSEL0:
     case GPFSEL1:
@@ -173,8 +168,18 @@ static uint64_t bcm2835_gpio_read(void *opaque, hwaddr offset,unsigned size)
         /* Write Only */
         return 0;
     case GPLEV0:
+        if(s->panel.socket!=-1)
+        {
+            panel_read(&s->panel,&Data);
+            s->lev0=(uint32_t)Data;
+        }
         return s->lev0;
     case GPLEV1:
+        if(s->panel.socket!=-1)
+        {
+            panel_read(&s->panel,&Data);
+            s->lev1=(uint32_t)(Data>>32);
+        }
         return s->lev1;
     case GPEDS0:
     case GPEDS1:
@@ -208,11 +213,8 @@ static void bcm2835_gpio_write(void *opaque, hwaddr offset,
         uint64_t value, unsigned size)
 {
     BCM2835GpioState *s = (BCM2835GpioState *)opaque;
+    uint64_t    Data;
     
-    if(s->panel.socket!=-1)
-    {
-        panel_write(&s->panel,offset/4,(char)value); //John Bradley dummy GPIO Panel
-    }    
 
     switch (offset) {
     case GPFSEL0:
@@ -225,15 +227,37 @@ static void bcm2835_gpio_write(void *opaque, hwaddr offset,
         break;
     case GPSET0:
         gpset(s, value, 0, 32, &s->lev0);
+        if(s->panel.socket!=-1)
+        {
+            Data=value;
+            panel_write(&s->panel,Data,1); //John Bradley dummy GPIO Panel
+        }    
         break;
     case GPSET1:
         gpset(s, value, 32, 22, &s->lev1);
+        if(s->panel.socket!=-1)
+        {
+            Data=value;
+            Data<<=32;
+            panel_write(&s->panel,Data,1); //John Bradley dummy GPIO Panel
+        }    
         break;
     case GPCLR0:
         gpclr(s, value, 0, 32, &s->lev0);
+        if(s->panel.socket!=-1)
+        {
+            Data=value;
+            panel_write(&s->panel,Data,0); //John Bradley dummy GPIO Panel
+        }    
         break;
     case GPCLR1:
         gpclr(s, value, 32, 22, &s->lev1);
+        if(s->panel.socket!=-1)
+        {
+            Data=value;
+            Data<<=32;
+            panel_write(&s->panel,Data,0); //John Bradley dummy GPIO Panel
+        }    
         break;
     case GPLEV0:
     case GPLEV1:

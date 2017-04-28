@@ -2,6 +2,7 @@
  * Emulation for Rasp PI GPIO via Server connected to via Socket
  *
  */
+#include "qemu/osdep.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -117,7 +118,7 @@ static void panel_command(panel_connection_t *h,CommandPacket *Pkt)
 
 
 /* Wait for values to be read back from panel */
-static int panel_getpins(panel_connection_t* h, void* Return, int sizeof_return)
+static int panel_getpins(panel_connection_t* h,uint64_t* Data)
 {
     fd_set rfds, efds;
     int t;
@@ -172,6 +173,12 @@ static int panel_getpins(panel_connection_t* h, void* Return, int sizeof_return)
         {
             if (Pkt.Data[PACKETTYPE]==READRESPONSE) 
             {
+
+                *Data=(uint64_t)Pkt.Data[2];
+                *Data|=((uint64_t)Pkt.Data[3])<<16;
+                *Data|=((uint64_t)Pkt.Data[4])<<32;
+                *Data|=((uint64_t)Pkt.Data[5])<<48;
+                        
 //                  strncpy(status, &str[2],slen-1);
 //                  /* ensure termination */
 //                  status[slen-1] = '\0';
@@ -240,31 +247,33 @@ void panel_send_read_command(panel_connection_t* h)
 
 
 /* Send a read request */
-int panel_read(panel_connection_t* h, void* status, size_t slen)
+int panel_read(panel_connection_t* h, uint64_t* Data)
 {
 	int len=0;
-        CommandPacket Pkt;
+//        CommandPacket Pkt;
 
         panel_send_read_command(h);
 
 	while (!len)
         {
-            len = panel_getpins(h, &Pkt, sizeof(Pkt));
+            len = panel_getpins(h, Data);
         }
 	return len;
 }
 
 
 /* Set a pin to a specified value */
-void panel_write(panel_connection_t* h, int pin, char val)
+void panel_write(panel_connection_t* h, uint64_t pin, char val)
 {
         CommandPacket Pkt;
         
-        Pkt.Data[PACKETLEN]=(char *)&Pkt.Data[3+1]-(char *)&Pkt.Data[0];
+        Pkt.Data[PACKETLEN]=(char *)&Pkt.Data[6+1]-(char *)&Pkt.Data[0];
         Pkt.Data[PACKETTYPE]=PINSTATE;
-        Pkt.Data[2]=pin;
-        Pkt.Data[3]=val;
-
+        Pkt.Data[2]=(unsigned short int)(pin&0xFFFF);
+        Pkt.Data[3]=(unsigned short int)((pin>>16)&0xFFFF);
+        Pkt.Data[4]=(unsigned short int)(pin>>32&0xFFFF);
+        Pkt.Data[5]=(unsigned short int)((pin>>48)&0xFFFF);
+        Pkt.Data[6]=val;
         
 	panel_command(h, &Pkt);
 }
