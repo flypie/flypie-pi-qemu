@@ -425,7 +425,7 @@ possible drivers and properties, use @code{-device help} and
 @code{-device @var{driver},help}.
 
 Some drivers are:
-@item -device ipmi-bmc-sim,id=@var{id}[,slave_addr=@var{val}]
+@item -device ipmi-bmc-sim,id=@var{id}[,slave_addr=@var{val}][,sdrfile=@var{file}][,furareasize=@var{val}][,furdatafile=@var{file}]
 
 Add an IPMI BMC.  This is a simulation of a hardware management
 interface processor that normally sits on a system.  It provides
@@ -436,6 +436,19 @@ The IPMI slave address to use for the BMC.  The default is 0x20.
 This address is the BMC's address on the I2C network of management
 controllers.  If you don't know what this means, it is safe to ignore
 it.
+
+@table @option
+@item bmc=@var{id}
+The BMC to connect to, one of ipmi-bmc-sim or ipmi-bmc-extern above.
+@item slave_addr=@var{val}
+Define slave address to use for the BMC.  The default is 0x20.
+@item sdrfile=@var{file}
+file containing raw Sensor Data Records (SDR) data. The default is none.
+@item fruareasize=@var{val}
+size of a Field Replaceable Unit (FRU) area.  The default is 1024.
+@item frudatafile=@var{file}
+file containing raw Field Replaceable Unit (FRU) inventory data. The default is none.
+@end table
 
 @item -device ipmi-bmc-extern,id=@var{id},chardev=@var{id}[,slave_addr=@var{val}]
 
@@ -3378,6 +3391,11 @@ DEF("xen-attach", 0, QEMU_OPTION_xen_attach,
     "-xen-attach     attach to existing xen domain\n"
     "                xend will use this when starting QEMU\n",
     QEMU_ARCH_ALL)
+DEF("xen-domid-restrict", 0, QEMU_OPTION_xen_domid_restrict,
+    "-xen-domid-restrict     restrict set of available xen operations\n"
+    "                        to specified domain id. (Does not affect\n"
+    "                        xenpv machine type).\n",
+    QEMU_ARCH_ALL)
 STEXI
 @item -xen-domid @var{id}
 @findex -xen-domid
@@ -3390,6 +3408,8 @@ Warning: should not be used when xend is in use (XEN only).
 @findex -xen-attach
 Attach to existing xen domain.
 xend will use this when starting QEMU (XEN only).
+@findex -xen-domid-restrict
+Restrict set of available xen operations to specified domain id (XEN only).
 ETEXI
 
 DEF("no-reboot", 0, QEMU_OPTION_no_reboot, \
