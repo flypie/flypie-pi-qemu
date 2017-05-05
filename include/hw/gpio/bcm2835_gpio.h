@@ -32,8 +32,8 @@ typedef struct BCM2835GpioState {
     uint32_t lev0, lev1;
     uint8_t sd_fsel;
     qemu_irq out[54];
-    
-    panel_connection_t  panel;
+
+    panel_connection_t panel;
 
 } BCM2835GpioState;
 

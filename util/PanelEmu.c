@@ -21,14 +21,16 @@
 
 #include "qemu/PanelEmu.h"
 
-
-
-typedef enum 
+typedef enum
 {
-    MACHINEDESC=0,
-    PINSTATE=1,
-    READREQ=2,
-    READRESPONSE =3
+    MACHINEDESC = 0,
+    PINSTOPANEL = 1,
+    READREQ = 2,
+    PINCOUNT = 3,
+    ENABLEMAP = 4,
+    INPUTMAP = 5,
+    OUTPUTMAP = 6,
+    PINSTOQEMU = 7
 } PacketType;
 
 #define MAXPACKET   255
@@ -38,16 +40,8 @@ typedef enum
 
 typedef struct
 {
-    unsigned short int  Data[MAXPACKET];
+    unsigned short int Data[MAXPACKET];
 } CommandPacket;
-// Only deals with the first 'bank'.
-typedef struct PCIGPIOState 
-{
-//    PCIDevice dev;
-    panel_connection_t panel;   // connection to GPIO panel
-    unsigned char cfg_state[0x100];
-} PCIGPIOState;
-
 
 /*
  * Hub connections
@@ -56,233 +50,224 @@ typedef struct PCIGPIOState
 
 int panel_open(panel_connection_t* h)
 {
-	struct sockaddr_in remote;
+    struct sockaddr_in remote;
+    int returnval = - 1;
 
 #ifdef __MINGW32__
-        WSADATA wsadata;
-        if (WSAStartup(MAKEWORD(1,1), &wsadata) == SOCKET_ERROR) 
-        {
-            printf("Error creating socket.");
-            return -1;
-        }
+    WSADATA wsadata;
+    if (WSAStartup(MAKEWORD(1, 1), &wsadata) == SOCKET_ERROR) {
+        printf("Error creating socket.");
+    }
+    else
 #endif
-        if ((h->socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) 
-        {
-		perror(PANEL_NAME "socket");
-		return -1;
-	}
+    {
+        if ((h->socket = socket(AF_INET, SOCK_STREAM, 0)) != - 1) {
+            remote.sin_family = AF_INET;
+            remote.sin_port = htons(PANEL_PORT);
+            remote.sin_addr.s_addr = inet_addr("127.0.0.1");
+            if (connect(h->socket, (struct sockaddr *) &remote, sizeof (remote)) != - 1) {
+#ifdef __MINGW32__
+                char value = 1;
+                setsockopt(h->socket, IPPROTO_TCP, TCP_NODELAY, &value, sizeof ( value));
 
-	remote.sin_family = AF_INET;
-	remote.sin_port = htons(PANEL_PORT);
-	remote.sin_addr.s_addr = inet_addr("127.0.0.1");
-	if (connect(h->socket, (struct sockaddr *)&remote, sizeof(remote)) == -1) 
-        {
-		perror(PANEL_NAME "connection");
+#endif
+                FD_ZERO(&h->fds);
+
+                /* Set our connected socket */
+                FD_SET(h->socket, &h->fds);
+
+                printf(PANEL_NAME "Connected OK\n");
+                returnval = 0;
+            } else {
+                perror(PANEL_NAME "connection");
 #ifdef __MINGW32__
                 closesocket(h->socket);
 #else
-		close(h->socket);
-#endif
-		h->socket = -1;
-		return -1;
-	}
-
-#ifdef __MINGW32__
-
-        char value = 1;
-        setsockopt( h->socket, IPPROTO_TCP, TCP_NODELAY, &value, sizeof( value ) );
-
-#endif
-	FD_ZERO(&h->fds);
-
-	/* Set our connected socket */
-	FD_SET(h->socket, &h->fds);	
-	
-	printf(PANEL_NAME "Connected OK\n");
-	return 0;
-}
-
-static void panel_command(panel_connection_t *h,CommandPacket *Pkt)
-{	
-        if (send(h->socket, (char *)Pkt, Pkt->Data[PACKETLEN], 0) == -1) 
-        {
-		perror(PANEL_NAME "send");
-#ifdef __MINGW32__
-                closesocket(h->socket);
-#else		
                 close(h->socket);
-#endif                
-		h->socket = -1;  /* act like we never connected */
-	}
+#endif
+                h->socket = - 1;
+            }
+        }
+    }
+    return returnval;
 }
 
-
-/* Wait for values to be read back from panel */
-static int panel_getpins(panel_connection_t* h,uint64_t* Data)
+static void panel_command(panel_connection_t *h, CommandPacket *Pkt)
 {
-    fd_set rfds, efds;
-    int t;
-    int select_res = 0;
-    int Status=-1;
-    CommandPacket   Pkt;
-    BOOL    NoError=TRUE;
-
-    if (h->socket==-1)
-    {
-        NoError=FALSE;
-    }
-    else
-    {
-        // Wait for a response from peripheral, assume it arrives all together
-        // (likely since it's only a few bytes long)
-
-        rfds = h->fds;
-        efds = h->fds;
-    }
-
-    while(NoError)
-    {
-        select_res = select(h->socket + 1, &rfds, NULL, &efds, NULL);
-        if (select_res == -1)
-        {
-            if (errno == EINTR)
-            {
-            // try again, syscall
-            }
-            else
-            {
-                perror(PANEL_NAME "select");
-                NoError=FALSE;
-            }
-        }
-        else if (select_res == 0)
-        {
-            // timeout, wait a bit longer for data
-        }
-        else
-        {
-            // Should be one or more descriptors signalled.
-            break;
-        }
-    }
-
-    if (FD_ISSET(h->socket, &rfds)) 
-    {
-        /* receive more data */
-        if ((t = recv(h->socket, (char *)&Pkt, sizeof(Pkt), 0)) > 0)
-        {
-            if (Pkt.Data[PACKETTYPE]==READRESPONSE) 
-            {
-
-                *Data=(uint64_t)Pkt.Data[2];
-                *Data|=((uint64_t)Pkt.Data[3])<<16;
-                *Data|=((uint64_t)Pkt.Data[4])<<32;
-                *Data|=((uint64_t)Pkt.Data[5])<<48;
-                        
-//                  strncpy(status, &str[2],slen-1);
-//                  /* ensure termination */
-//                  status[slen-1] = '\0';
-//                Status=1;
-            }
-            else
-            {
-                printf(PANEL_NAME "Invalid data received\n");
-            }
-        }
-        else
-        {
-            if (t < 0)
-            {
-                perror("recv");
-            }
-            else 
-            {
-                printf(PANEL_NAME "closed connection\n");
-            }
-            NoError=FALSE;
-        }
-    }
-
-    if (FD_ISSET(h->socket, &efds)) 
-    {
-            /* error on this socket */
-        printf(PANEL_NAME "closed connection\n");
-        NoError=FALSE;
-    }
-
-    if(!NoError && h->socket!=-1)
-    {
+    if (send(h->socket, (char *) Pkt, Pkt->Data[PACKETLEN], 0) == - 1) {
+        perror(PANEL_NAME "send");
 #ifdef __MINGW32__
         closesocket(h->socket);
-#else		
+#else
         close(h->socket);
-#endif  
-        h->socket = -1;  /* act like we never connected */           
-
-        Status=0;
-
+#endif
+        h->socket = - 1; /* act like we never connected */
     }
-    else if(h->socket==-1)
-    {
-        Status=0;
-    }
-    else
-    {
-        Status=1;
-    }
-    return Status;
 }
 
+/* Wait for values to be read back from panel */
+bool panel_read(panel_connection_t* h, uint64_t* Data)
+{
+    fd_set rfds, efds;
+    int LengthInBuffer;
+    int select_res = 0;
 
-/* Set a pin to a specified value */
+    CommandPacket *PktPtr = (CommandPacket *) malloc(sizeof (CommandPacket));
+    CommandPacket *Pkt;
+    bool NoError = true;
+    bool NewData = false;
+    bool NoData = false;
+    struct timeval timeout;
+
+    int ReadStart = 0;
+
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 0;
+
+    if (h->socket != - 1) {
+        rfds = h->fds;
+        efds = h->fds;
+
+        printf(PANEL_NAME "panel_read\n");
+
+        Pkt = PktPtr;
+        while (NoError&&! NoData) {
+            select_res = select(h->socket + 1, &rfds, NULL, &efds, &timeout);
+            if (select_res > 0) {
+                if (FD_ISSET(h->socket, &rfds)) {
+                    /* receive more data */
+                    if ((LengthInBuffer = recv(h->socket, (char *) &Pkt[ReadStart], sizeof (*Pkt) - ReadStart, 0)) > 0) {
+                        LengthInBuffer += ReadStart;
+                        for (int i = 0; LengthInBuffer > 0; i ++) {
+                            if (LengthInBuffer >= Pkt->Data[i + PACKETLEN]) {
+                                if (Pkt->Data[i + PACKETTYPE] == PINSTOQEMU) {
+                                    *Data = (uint64_t) Pkt->Data[i + 2];
+                                    *Data |= ((uint64_t) Pkt->Data[i + 3]) << 16;
+                                    *Data |= ((uint64_t) Pkt->Data[i + 4]) << 32;
+                                    *Data |= ((uint64_t) Pkt->Data[i + 5]) << 48;
+
+                                    NewData = true;
+                                } else {
+                                    printf(PANEL_NAME "Invalid data received\n");
+                                }
+                                LengthInBuffer -= Pkt->Data[PACKETLEN];
+                                i += Pkt->Data[PACKETLEN]; //								Pkt=(CommandPacket *)&(Pkt->Data[Pkt->Data[PACKETLEN]]);
+                            } else {
+                                ReadStart = LengthInBuffer;
+                                for (int j = 0; j < LengthInBuffer; j ++) {
+                                    Pkt->Data[j] = Pkt->Data[i + j];
+                                }
+                                printf(PANEL_NAME "Partial Packet Read");
+                            }
+                        }
+                    } else {
+                        if (LengthInBuffer < 0) {
+                            if (errno != EINTR) {
+                                printf(PANEL_NAME "recv");
+                                NoError = FALSE;
+                            }
+                        } else {
+                            printf(PANEL_NAME "closed connection\n");
+                            NoError = FALSE;
+                        }
+                    }
+                }
+            } else if (select_res == 0) {
+                NoData = true;
+            } else if (errno != EINTR) {
+#ifdef __MINGW32__
+                closesocket(h->socket);
+#else
+                close(h->socket);
+#endif
+                h->socket = - 1; /* act like we never connected */
+                perror(PANEL_NAME "select error");
+                NoError = FALSE;
+            }
+        }
+    }
+
+    free(PktPtr);
+
+    return NewData;
+}
+
 void panel_send_read_command(panel_connection_t* h)
 {
-        CommandPacket Pkt;
-        
-        Pkt.Data[PACKETLEN]=4;
-        Pkt.Data[PACKETTYPE]=READREQ;
-        
-	panel_command(h, &Pkt);
+    CommandPacket Pkt;
+
+    Pkt.Data[PACKETLEN] = 4;
+    Pkt.Data[PACKETTYPE] = READREQ;
+
+    panel_command(h, &Pkt);
 }
-
-
-/* Send a read request */
-int panel_read(panel_connection_t* h, uint64_t* Data)
-{
-	int len=0;
-//        CommandPacket Pkt;
-
-        panel_send_read_command(h);
-
-	while (!len)
-        {
-            len = panel_getpins(h, Data);
-        }
-	return len;
-}
-
 
 /* Set a pin to a specified value */
-void panel_write(panel_connection_t* h, uint64_t pin, char val)
+void senddatatopanel(panel_connection_t* h, uint64_t pin, bool val)
 {
-        CommandPacket Pkt;
-        
-        Pkt.Data[PACKETLEN]=(char *)&Pkt.Data[6+1]-(char *)&Pkt.Data[0];
-        Pkt.Data[PACKETTYPE]=PINSTATE;
-        Pkt.Data[2]=(unsigned short int)(pin&0xFFFF);
-        Pkt.Data[3]=(unsigned short int)((pin>>16)&0xFFFF);
-        Pkt.Data[4]=(unsigned short int)(pin>>32&0xFFFF);
-        Pkt.Data[5]=(unsigned short int)((pin>>48)&0xFFFF);
-        Pkt.Data[6]=val;
-        
-	panel_command(h, &Pkt);
+    CommandPacket Pkt;
+
+    Pkt.Data[PACKETLEN] = (char *) &Pkt.Data[6 + 1]-(char *) &Pkt.Data[0];
+    Pkt.Data[PACKETTYPE] = PINSTOPANEL;
+    Pkt.Data[2] = (unsigned short int) (pin & 0xFFFF);
+    Pkt.Data[3] = (unsigned short int) ((pin >> 16)&0xFFFF);
+    Pkt.Data[4] = (unsigned short int) (pin >> 32 & 0xFFFF);
+    Pkt.Data[5] = (unsigned short int) ((pin >> 48)&0xFFFF);
+    Pkt.Data[6] = val;
+
+    panel_command(h, &Pkt);
 }
 
+void sendpincount(panel_connection_t* h, int val)
+{
+    CommandPacket Pkt;
 
+    Pkt.Data[PACKETLEN] = (char *) &Pkt.Data[2 + 1]-(char *) &Pkt.Data[0];
+    Pkt.Data[PACKETTYPE] = PINCOUNT;
+    Pkt.Data[2] = val;
 
-//static void panel_close(panel_connection_t* h)
-//{
-//	close(h->socket);
-//}
+    panel_command(h, &Pkt);
+}
 
+void sendenabledmap(panel_connection_t* h, uint64_t pin)
+{
+    CommandPacket Pkt;
+
+    Pkt.Data[PACKETLEN] = (char *) &Pkt.Data[5 + 1]-(char *) &Pkt.Data[0];
+    Pkt.Data[PACKETTYPE] = ENABLEMAP;
+    Pkt.Data[2] = (unsigned short int) (pin & 0xFFFF);
+    Pkt.Data[3] = (unsigned short int) ((pin >> 16)&0xFFFF);
+    Pkt.Data[4] = (unsigned short int) (pin >> 32 & 0xFFFF);
+    Pkt.Data[5] = (unsigned short int) ((pin >> 48)&0xFFFF);
+
+    panel_command(h, &Pkt);
+}
+
+void sendinputmap(panel_connection_t* h, uint64_t pin)
+{
+    CommandPacket Pkt;
+
+    Pkt.Data[PACKETLEN] = (char *) &Pkt.Data[5 + 1]-(char *) &Pkt.Data[0];
+    Pkt.Data[PACKETTYPE] = INPUTMAP;
+    Pkt.Data[2] = (unsigned short int) (pin & 0xFFFF);
+    Pkt.Data[3] = (unsigned short int) ((pin >> 16)&0xFFFF);
+    Pkt.Data[4] = (unsigned short int) (pin >> 32 & 0xFFFF);
+    Pkt.Data[5] = (unsigned short int) ((pin >> 48)&0xFFFF);
+
+    panel_command(h, &Pkt);
+}
+
+void sendoutputmap(panel_connection_t* h, uint64_t pin)
+{
+    CommandPacket Pkt;
+
+    Pkt.Data[PACKETLEN] = (char *) &Pkt.Data[5 + 1]-(char *) &Pkt.Data[0];
+    Pkt.Data[PACKETTYPE] = OUTPUTMAP;
+    Pkt.Data[2] = (unsigned short int) (pin & 0xFFFF);
+    Pkt.Data[3] = (unsigned short int) ((pin >> 16)&0xFFFF);
+    Pkt.Data[4] = (unsigned short int) (pin >> 32 & 0xFFFF);
+    Pkt.Data[5] = (unsigned short int) ((pin >> 48)&0xFFFF);
+
+    panel_command(h, &Pkt);
+}
 
