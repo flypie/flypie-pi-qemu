@@ -75,7 +75,7 @@ int panel_open(panel_connection_t* h)
     {
         if ((h->socket = socket(AF_INET, SOCK_STREAM, 0)) != - 1) {
 #ifdef __MINGW32__
-            bzero((char *)&remote, sizeof(remote));
+            memset((char *)&remote, 0, sizeof(remote));
             remote.sin_family = AF_INET;
             remote.sin_port = htons(DEFAULT_PORT);
             remote.sin_addr.s_addr = inet_addr("127.0.0.1");            

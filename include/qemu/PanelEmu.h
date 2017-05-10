@@ -22,12 +22,8 @@ extern "C" {
 #define DRIVER_NAME "RDC-GPIO: "
 #define PANEL_NAME "GPIO panel: "
 
-#ifdef __MINGW32__
-#define DEFAULT_PORT "45567"
-#else
-#define DEFAULT_PORT 45567
-#endif
-//#define PANEL_PORT 0xb1ff       //45567
+
+#define DEFAULT_PORT 0xb1ff       //45567
 
 #define PANEL_PINS 54
 
