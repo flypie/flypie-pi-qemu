@@ -7,6 +7,14 @@
 #include "qemu/bitmap.h"
 #include "qom/object.h"
 
+#define IAC_EOR 239
+#define IAC_SE 240
+#define IAC_NOP 241
+#define IAC_BREAK 243
+#define IAC_IP 244
+#define IAC_SB 250
+#define IAC 255
+
 /* character device */
 
 typedef enum {
@@ -93,9 +101,8 @@ struct Chardev {
     char *filename;
     int logfd;
     int be_open;
-    guint fd_in_tag;
+    GSource *gsource;
     DECLARE_BITMAP(features, QEMU_CHAR_FEATURE_LAST);
-    QTAILQ_ENTRY(Chardev) next;
 };
 
 /**
@@ -169,14 +176,6 @@ int qemu_chr_fe_wait_connected(CharBackend *be, Error **errp);
  * Returns: a new character backend
  */
 Chardev *qemu_chr_new_noreplay(const char *label, const char *filename);
-
-/**
- * @qemu_chr_delete:
- *
- * Destroy a character backend and remove it from the list of
- * identified character backends.
- */
-void qemu_chr_delete(Chardev *chr);
 
 /**
  * @qemu_chr_fe_set_echo:
@@ -427,7 +426,6 @@ void qemu_chr_fe_set_handlers(CharBackend *b,
  */
 void qemu_chr_fe_take_focus(CharBackend *b);
 
-void qemu_chr_be_generic_open(Chardev *s);
 void qemu_chr_fe_accept_input(CharBackend *be);
 int qemu_chr_add_client(Chardev *s, int fd);
 Chardev *qemu_chr_find(const char *name);
