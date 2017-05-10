@@ -50,22 +50,42 @@ typedef struct
 
 int panel_open(panel_connection_t* h)
 {
+    int rv;
+#ifdef __MINGW32__    
     struct sockaddr_in remote;
+#else
+    struct sockaddr_in remote;    
+#endif
+    
     int returnval = - 1;
 
+#ifdef __MINGW32__    
+     printf("__MINGW32__\n");
+#else
+     printf("NOT __MINGW32__\n");   
+#endif    
+    
 #ifdef __MINGW32__
     WSADATA wsadata;
     if (WSAStartup(MAKEWORD(1, 1), &wsadata) == SOCKET_ERROR) {
-        printf("Error creating socket.");
+        printf("Error creating socket.\n");
     }
     else
 #endif
     {
         if ((h->socket = socket(AF_INET, SOCK_STREAM, 0)) != - 1) {
+#ifdef __MINGW32__
+            bzero((char *)&remote, sizeof(remote));
             remote.sin_family = AF_INET;
-            remote.sin_port = htons(PANEL_PORT);
+            remote.sin_port = htons(DEFAULT_PORT);
+            remote.sin_addr.s_addr = inet_addr("127.0.0.1");            
+#else
+            bzero((char *)&remote, sizeof(remote));
+            remote.sin_family = AF_INET;
+            remote.sin_port = htons(DEFAULT_PORT);
             remote.sin_addr.s_addr = inet_addr("127.0.0.1");
-            if (connect(h->socket, (struct sockaddr *) &remote, sizeof (remote)) != - 1) {
+#endif
+            if ((rv=connect(h->socket, (struct sockaddr *) &remote, sizeof (remote))) != - 1) {
 #ifdef __MINGW32__
                 char value = 1;
                 setsockopt(h->socket, IPPROTO_TCP, TCP_NODELAY, &value, sizeof ( value));
@@ -76,10 +96,10 @@ int panel_open(panel_connection_t* h)
                 /* Set our connected socket */
                 FD_SET(h->socket, &h->fds);
 
-                printf(PANEL_NAME "Connected OK\n");
+                printf(PANEL_NAME "Connected OK %d\n",rv);
                 returnval = 0;
             } else {
-                perror(PANEL_NAME "connection");
+                printf(PANEL_NAME "connection Failes %d\n",rv);
 #ifdef __MINGW32__
                 closesocket(h->socket);
 #else
@@ -128,7 +148,7 @@ bool panel_read(panel_connection_t* h, uint64_t* Data)
         rfds = h->fds;
         efds = h->fds;
 
-        printf(PANEL_NAME "panel_read\n");
+//        printf(PANEL_NAME "panel_read\n");
 
         Pkt = PktPtr;
         while (NoError&&! NoData) {
