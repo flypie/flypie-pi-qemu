@@ -1,3 +1,4 @@
+/bin
 /config-devices.*
 /config-all-devices.*
 /config-all-disas.*
@@ -10,7 +11,6 @@
 /trace/generated-events.c
 /trace/generated-helpers-wrappers.h
 /trace/generated-helpers.h
-/bin
 /trace/generated-helpers.c
 /trace/generated-tcg-tracers.h
 /ui/shader/texture-blit-frag.h
