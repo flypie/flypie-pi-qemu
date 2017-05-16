@@ -340,17 +340,14 @@ static void bcm2835_gpio_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
     qdev_init_gpio_out(dev, s->out, 54);
 
-    int err;
-
     /* Get access to the GPIO panel, program will quit on fail */
-    err = panel_open(&s->panel);
-    if (err) {
-        printf("Couldn't connect to a GPIO panel\n"); //John Bradley dummy GPIO Panel
-    } else {
+    if (panel_open(&s->panel)) {
         sendpincount(&s->panel, 54); //PI Has 54 Pins
         sendenabledmap(&s->panel, 0x003FFFFFFFFFFFFC); //Pins 0 & 1 are I2C so disable
         sendinputmap(&s->panel, 0x0000000000000000); //There are no dedicated input pins I know off
         sendoutputmap(&s->panel, 0x0000800000000000); //Pin 53 is dedicated output LED
+    } else {
+        printf("Couldn't connect to a GPIO panel\n"); //John Bradley dummy GPIO Panel
     }
 }
 

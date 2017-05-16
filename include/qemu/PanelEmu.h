@@ -32,9 +32,10 @@ extern "C" {
         fd_set fds; /* list of descriptors (only the above socket */
         char last[PANEL_PINS / 8]; /* we don't want to send updates to the panel
 	                       unless something changed */
+        int ProtocolInUse;  //What version of the protocol are we using.
     } panel_connection_t;
 
-    int panel_open(panel_connection_t* h);
+    bool panel_open(panel_connection_t* h);
 
     bool panel_read(panel_connection_t* h, uint64_t *pinS);
     void senddatatopanel(panel_connection_t* h, uint64_t pinS, bool Value);
