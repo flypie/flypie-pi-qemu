@@ -55,7 +55,7 @@ static uint32_t gpfsel_get(BCM2835GpioState *s, uint8_t reg)
 {
     int i;
     uint32_t value = 0;
-    for (i = 0; i < 10; i ++) {
+    for (i = 0; i < 10; i++) {
         uint32_t index = 10 * reg + i;
         if (index < sizeof (s->fsel)) {
             value |= (s->fsel[index] & 0x7) << (3 * i);
@@ -67,7 +67,7 @@ static uint32_t gpfsel_get(BCM2835GpioState *s, uint8_t reg)
 static void gpfsel_set(BCM2835GpioState *s, uint8_t reg, uint32_t value)
 {
     int i;
-    for (i = 0; i < 10; i ++) {
+    for (i = 0; i < 10; i++) {
         uint32_t index = 10 * reg + i;
         if (index < sizeof (s->fsel)) {
             int fsel = (value >> (3 * i)) & 0x7;
@@ -116,7 +116,7 @@ static void gpset(BCM2835GpioState *s,
     uint32_t cur = 1;
 
     int i;
-    for (i = 0; i < count; i ++) {
+    for (i = 0; i < count; i++) {
         if ((changes & cur) && (gpfsel_is_out(s, start + i))) {
             qemu_set_irq(s->out[start + i], 1);
         }
@@ -133,19 +133,19 @@ static void gpclr(BCM2835GpioState *s,
     uint32_t cur = 1;
 
     int i;
-    for (i = 0; i < count; i ++) {
+    for (i = 0; i < count; i++) {
         if ((changes & cur) && (gpfsel_is_out(s, start + i))) {
             qemu_set_irq(s->out[start + i], 0);
         }
         cur <<= 1;
     }
 
-    *lev &= ~ val;
+    *lev &= ~val;
 }
 
 static uint64_t bcm2835_gpio_read(void *opaque, hwaddr offset, unsigned size)
 {
-    BCM2835GpioState *s = (BCM2835GpioState *) opaque;
+    BCM2835GpioState *s = (BCM2835GpioState *)opaque;
 
     uint64_t Data;
 
@@ -166,18 +166,18 @@ static uint64_t bcm2835_gpio_read(void *opaque, hwaddr offset, unsigned size)
             /* Write Only */
             return 0;
         case GPLEV0:
-            if (s->panel.socket != - 1) {
+            if (s->panel.socket != -1) {
                 if (panel_read(&s->panel, &Data)) {
-                    s->lev0 = (uint32_t) Data;
-                    s->lev1 = (uint32_t) (Data >> 32);
+                    s->lev0 = (uint32_t)Data;
+                    s->lev1 = (uint32_t)(Data >> 32);
                 }
             }
             return s->lev0;
         case GPLEV1:
-            if (s->panel.socket != - 1) {
+            if (s->panel.socket != -1) {
                 if (panel_read(&s->panel, &Data)) {
-                    s->lev0 = (uint32_t) Data;
-                    s->lev1 = (uint32_t) (Data >> 32);
+                    s->lev0 = (uint32_t)Data;
+                    s->lev1 = (uint32_t)(Data >> 32);
                 }
             }
             return s->lev1;
@@ -212,7 +212,7 @@ static uint64_t bcm2835_gpio_read(void *opaque, hwaddr offset, unsigned size)
 static void bcm2835_gpio_write(void *opaque, hwaddr offset,
                                uint64_t value, unsigned size)
 {
-    BCM2835GpioState *s = (BCM2835GpioState *) opaque;
+    BCM2835GpioState *s = (BCM2835GpioState *)opaque;
     uint64_t Data;
 
 
@@ -227,32 +227,36 @@ static void bcm2835_gpio_write(void *opaque, hwaddr offset,
             break;
         case GPSET0:
             gpset(s, value, 0, 32, &s->lev0);
-            if (s->panel.socket != - 1) {
+            if (s->panel.socket != -1) {
                 Data = value;
-                senddatatopanel(&s->panel, Data, true); //John Bradley dummy GPIO Panel
+                /* John Bradley dummy GPIO Panel */
+                senddatatopanel(&s->panel, Data, true);
             }
             break;
         case GPSET1:
             gpset(s, value, 32, 22, &s->lev1);
-            if (s->panel.socket != - 1) {
+            if (s->panel.socket != -1) {
                 Data = value;
                 Data <<= 32;
-                senddatatopanel(&s->panel, Data, true); //John Bradley dummy GPIO Panel
+                /* John Bradley dummy GPIO Panel */
+                senddatatopanel(&s->panel, Data, true);
             }
             break;
         case GPCLR0:
             gpclr(s, value, 0, 32, &s->lev0);
-            if (s->panel.socket != - 1) {
+            if (s->panel.socket != -1) {
                 Data = value;
-                senddatatopanel(&s->panel, Data, false); //John Bradley dummy GPIO Panel
+                /* John Bradley dummy GPIO Panel */
+                senddatatopanel(&s->panel, Data, false);
             }
             break;
         case GPCLR1:
             gpclr(s, value, 32, 22, &s->lev1);
-            if (s->panel.socket != - 1) {
+            if (s->panel.socket != -1) {
                 Data = value;
                 Data <<= 32;
-                senddatatopanel(&s->panel, Data, false); //John Bradley dummy GPIO Panel
+                /* John Bradley dummy GPIO Panel */
+                senddatatopanel(&s->panel, Data, false);
             }
             break;
         case GPLEV0:
@@ -293,7 +297,7 @@ static void bcm2835_gpio_reset(DeviceState *dev)
     BCM2835GpioState *s = BCM2835_GPIO(dev);
 
     int i;
-    for (i = 0; i < 6; i ++) {
+    for (i = 0; i < 6; i++) {
         gpfsel_set(s, i, 0);
     }
 
@@ -342,12 +346,16 @@ static void bcm2835_gpio_init(Object *obj)
 
     /* Get access to the GPIO panel, program will quit on fail */
     if (panel_open(&s->panel)) {
-        sendpincount(&s->panel, 54); //PI Has 54 Pins
-        sendenabledmap(&s->panel, 0x003FFFFFFFFFFFFC); //Pins 0 & 1 are I2C so disable
-        sendinputmap(&s->panel, 0x0000000000000000); //There are no dedicated input pins I know off
-        sendoutputmap(&s->panel, 0x0000800000000000); //Pin 53 is dedicated output LED
+        /* PI Has 54 Pins */
+        sendpincount(&s->panel, 54);
+        /* Pins 0 & 1 are I2C so disable */
+        sendenabledmap(&s->panel, 0x003FFFFFFFFFFFFC);
+        /* There are no dedicated input pins I know of */
+        sendinputmap(&s->panel, 0x0000000000000000);
+        /* Pin 53 is dedicated output LED */
+        sendoutputmap(&s->panel, 0x0000800000000000);
     } else {
-        printf("Couldn't connect to a GPIO panel\n"); //John Bradley dummy GPIO Panel
+        printf("Couldn't connect to a GPIO panel\n");
     }
 }
 
@@ -378,9 +386,9 @@ static void bcm2835_gpio_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->vmsd = & vmstate_bcm2835_gpio;
-    dc->realize = & bcm2835_gpio_realize;
-    dc->reset = & bcm2835_gpio_reset;
+    dc->vmsd = &vmstate_bcm2835_gpio;
+    dc->realize = &bcm2835_gpio_realize;
+    dc->reset = &bcm2835_gpio_reset;
 }
 
 static const TypeInfo bcm2835_gpio_info = {

@@ -48,18 +48,18 @@ typedef struct RasPi2State {
 static void write_smpboot(ARMCPU *cpu, const struct arm_boot_info *info)
 {
     static const uint32_t smpboot[] = {
-        0xe1a0e00f, /*    mov     lr, pc */
-        0xe3a0fe00 + (BOARDSETUP_ADDR >> 4), /* mov pc, BOARDSETUP_ADDR */
-        0xee100fb0, /*    mrc     p15, 0, r0, c0, c0, 5;get core ID */
-        0xe7e10050, /*    ubfx    r0, r0, #0, #2       ;extract LSB */
-        0xe59f5014, /*    ldr     r5, =0x400000CC      ;load mbox base */
-        0xe320f001, /* 1: yield */
-        0xe7953200, /*    ldr     r3, [r5, r0, lsl #4] ;read mbox for our core*/
-        0xe3530000, /*    cmp     r3, #0               ;spin while zero */
-        0x0afffffb, /*    beq     1b */
-        0xe7853200, /*    str     r3, [r5, r0, lsl #4] ;clear mbox */
-        0xe12fff13, /*    bx      r3                   ;jump to target */
-        0x400000cc, /* (constant: mailbox 3 read/clear base) */
+       0xe1a0e00f, /*    mov     lr, pc */
+       0xe3a0fe00 + (BOARDSETUP_ADDR >> 4), /* mov pc, BOARDSETUP_ADDR */
+       0xee100fb0, /*    mrc     p15, 0, r0, c0, c0, 5;get core ID */
+       0xe7e10050, /*    ubfx    r0, r0, #0, #2       ;extract LSB */
+       0xe59f5014, /*    ldr     r5, =0x400000CC      ;load mbox base */
+       0xe320f001, /* 1: yield */
+       0xe7953200, /*    ldr     r3, [r5, r0, lsl #4] ;read mbox for our core*/
+       0xe3530000, /*    cmp     r3, #0               ;spin while zero */
+       0x0afffffb, /*    beq     1b */
+       0xe7853200, /*    str     r3, [r5, r0, lsl #4] ;clear mbox */
+       0xe12fff13, /*    bx      r3                   ;jump to target */
+       0x400000cc, /* (constant: mailbox 3 read/clear base) */
     };
 
     /* check that we don't overrun board setup vectors */
@@ -148,8 +148,7 @@ static void raspi1_init(MachineState *machine)
     /* Setup the SOC */
     object_property_add_const_link(OBJECT(&s->soc), "ram", OBJECT(&s->ram),
                                    &error_abort);
-//   object_property_set_int(OBJECT(&s->soc), smp_cpus, "enabled-cpus",
-//                            &error_abort);
+
     object_property_set_int(OBJECT(&s->soc), 0xa21041, "board-rev",
                             &error_abort);
     object_property_set_bool(OBJECT(&s->soc), true, "realized", &error_abort);
@@ -170,6 +169,7 @@ static void raspi1_init(MachineState *machine)
                                          &error_abort);
     setup_boot(machine, 1, machine->ram_size - vcram_size);
 }
+
 static void raspi2_init(MachineState *machine)
 {
     RasPi2State *s = g_new0(RasPi2State, 1);
@@ -215,7 +215,6 @@ static void raspi2_init(MachineState *machine)
     setup_boot(machine, 2, machine->ram_size - vcram_size);
 }
 
-
 static void raspi1_machine_init(MachineClass *mc)
 {
     mc->desc = "Raspberry Pi 1";
@@ -227,6 +226,7 @@ static void raspi1_machine_init(MachineClass *mc)
     mc->max_cpus = BCM2835_NCPUS;
     mc->default_ram_size = 512 * 1024 * 1024;
 };
+
 DEFINE_MACHINE("raspi1", raspi1_machine_init)
 
 static void raspi2_machine_init(MachineClass *mc)

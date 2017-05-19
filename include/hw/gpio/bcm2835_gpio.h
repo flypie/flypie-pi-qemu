@@ -15,7 +15,6 @@
 #define BCM2835_GPIO_H
 
 #include "hw/sd/sd.h"
-
 #include "qemu/PanelEmu.h"
 
 typedef struct BCM2835GpioState {
