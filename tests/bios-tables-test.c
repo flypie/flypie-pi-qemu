@@ -175,8 +175,8 @@ static void test_acpi_fadt_table(test_data *data)
     ACPI_READ_FIELD(fadt_table->reset_value, addr);
     ACPI_READ_FIELD(fadt_table->arm_boot_flags, addr);
     ACPI_READ_FIELD(fadt_table->minor_revision, addr);
-    ACPI_READ_FIELD(fadt_table->Xfacs, addr);
-    ACPI_READ_FIELD(fadt_table->Xdsdt, addr);
+    ACPI_READ_FIELD(fadt_table->x_facs, addr);
+    ACPI_READ_FIELD(fadt_table->x_dsdt, addr);
     ACPI_READ_GENERIC_ADDRESS(fadt_table->xpm1a_event_block, addr);
     ACPI_READ_GENERIC_ADDRESS(fadt_table->xpm1b_event_block, addr);
     ACPI_READ_GENERIC_ADDRESS(fadt_table->xpm1a_control_block, addr);
@@ -723,7 +723,8 @@ static void test_acpi_piix4_tcg_cphp(void)
     data.machine = MACHINE_PC;
     data.variant = ".cphp";
     test_acpi_one("-smp 2,cores=3,sockets=2,maxcpus=6"
-                  " -numa node -numa node",
+                  " -numa node -numa node"
+                  " -numa dist,src=0,dst=1,val=21",
                   &data);
     free_test_data(&data);
 }
@@ -736,7 +737,8 @@ static void test_acpi_q35_tcg_cphp(void)
     data.machine = MACHINE_Q35;
     data.variant = ".cphp";
     test_acpi_one(" -smp 2,cores=3,sockets=2,maxcpus=6"
-                  " -numa node -numa node",
+                  " -numa node -numa node"
+                  " -numa dist,src=0,dst=1,val=21",
                   &data);
     free_test_data(&data);
 }
@@ -785,7 +787,10 @@ static void test_acpi_q35_tcg_memhp(void)
     memset(&data, 0, sizeof(data));
     data.machine = MACHINE_Q35;
     data.variant = ".memhp";
-    test_acpi_one(" -m 128,slots=3,maxmem=1G -numa node", &data);
+    test_acpi_one(" -m 128,slots=3,maxmem=1G"
+                  " -numa node -numa node"
+                  " -numa dist,src=0,dst=1,val=21",
+                  &data);
     free_test_data(&data);
 }
 
@@ -796,7 +801,10 @@ static void test_acpi_piix4_tcg_memhp(void)
     memset(&data, 0, sizeof(data));
     data.machine = MACHINE_PC;
     data.variant = ".memhp";
-    test_acpi_one(" -m 128,slots=3,maxmem=1G -numa node", &data);
+    test_acpi_one(" -m 128,slots=3,maxmem=1G"
+                  " -numa node -numa node"
+                  " -numa dist,src=0,dst=1,val=21",
+                  &data);
     free_test_data(&data);
 }
 

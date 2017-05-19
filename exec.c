@@ -71,6 +71,8 @@
 #include "qemu/mmap-alloc.h"
 #endif
 
+#include "monitor/monitor.h"
+
 //#define DEBUG_SUBPAGE
 
 #if !defined(CONFIG_USER_ONLY)
@@ -463,42 +465,12 @@ address_space_translate_internal(AddressSpaceDispatch *d, hwaddr addr, hwaddr *x
 }
 
 /* Called from RCU critical section */
-IOMMUTLBEntry address_space_get_iotlb_entry(AddressSpace *as, hwaddr addr,
-                                            bool is_write)
-{
-    IOMMUTLBEntry iotlb = {0};
-    MemoryRegionSection *section;
-    MemoryRegion *mr;
-
-    for (;;) {
-        AddressSpaceDispatch *d = atomic_rcu_read(&as->dispatch);
-        section = address_space_lookup_region(d, addr, false);
-        addr = addr - section->offset_within_address_space
-               + section->offset_within_region;
-        mr = section->mr;
-
-        if (!mr->iommu_ops) {
-            break;
-        }
-
-        iotlb = mr->iommu_ops->translate(mr, addr, is_write);
-        if (!(iotlb.perm & (1 << is_write))) {
-            iotlb.target_as = NULL;
-            break;
-        }
-
-        addr = ((iotlb.translated_addr & ~iotlb.addr_mask)
-                | (addr & iotlb.addr_mask));
-        as = iotlb.target_as;
-    }
-
-    return iotlb;
-}
-
-/* Called from RCU critical section */
-MemoryRegion *address_space_translate(AddressSpace *as, hwaddr addr,
-                                      hwaddr *xlat, hwaddr *plen,
-                                      bool is_write)
+static MemoryRegionSection address_space_do_translate(AddressSpace *as,
+                                                      hwaddr addr,
+                                                      hwaddr *xlat,
+                                                      hwaddr *plen,
+                                                      bool is_write,
+                                                      bool is_mmio)
 {
     IOMMUTLBEntry iotlb;
     MemoryRegionSection *section;
@@ -506,7 +478,7 @@ MemoryRegion *address_space_translate(AddressSpace *as, hwaddr addr,
 
     for (;;) {
         AddressSpaceDispatch *d = atomic_rcu_read(&as->dispatch);
-        section = address_space_translate_internal(d, addr, &addr, plen, true);
+        section = address_space_translate_internal(d, addr, &addr, plen, is_mmio);
         mr = section->mr;
 
         if (!mr->iommu_ops) {
@@ -518,19 +490,84 @@ MemoryRegion *address_space_translate(AddressSpace *as, hwaddr addr,
                 | (addr & iotlb.addr_mask));
         *plen = MIN(*plen, (addr | iotlb.addr_mask) - addr + 1);
         if (!(iotlb.perm & (1 << is_write))) {
-            mr = &io_mem_unassigned;
-            break;
+            goto translate_fail;
         }
 
         as = iotlb.target_as;
     }
+
+    *xlat = addr;
+
+    return *section;
+
+translate_fail:
+    return (MemoryRegionSection) { .mr = &io_mem_unassigned };
+}
+
+/* Called from RCU critical section */
+IOMMUTLBEntry address_space_get_iotlb_entry(AddressSpace *as, hwaddr addr,
+                                            bool is_write)
+{
+    MemoryRegionSection section;
+    hwaddr xlat, plen;
+
+    /* Try to get maximum page mask during translation. */
+    plen = (hwaddr)-1;
+
+    /* This can never be MMIO. */
+    section = address_space_do_translate(as, addr, &xlat, &plen,
+                                         is_write, false);
+
+    /* Illegal translation */
+    if (section.mr == &io_mem_unassigned) {
+        goto iotlb_fail;
+    }
+
+    /* Convert memory region offset into address space offset */
+    xlat += section.offset_within_address_space -
+        section.offset_within_region;
+
+    if (plen == (hwaddr)-1) {
+        /*
+         * We use default page size here. Logically it only happens
+         * for identity mappings.
+         */
+        plen = TARGET_PAGE_SIZE;
+    }
+
+    /* Convert to address mask */
+    plen -= 1;
+
+    return (IOMMUTLBEntry) {
+        .target_as = section.address_space,
+        .iova = addr & ~plen,
+        .translated_addr = xlat & ~plen,
+        .addr_mask = plen,
+        /* IOTLBs are for DMAs, and DMA only allows on RAMs. */
+        .perm = IOMMU_RW,
+    };
+
+iotlb_fail:
+    return (IOMMUTLBEntry) {0};
+}
+
+/* Called from RCU critical section */
+MemoryRegion *address_space_translate(AddressSpace *as, hwaddr addr,
+                                      hwaddr *xlat, hwaddr *plen,
+                                      bool is_write)
+{
+    MemoryRegion *mr;
+    MemoryRegionSection section;
+
+    /* This can be MMIO, so setup MMIO bit. */
+    section = address_space_do_translate(as, addr, xlat, plen, is_write, true);
+    mr = section.mr;
 
     if (xen_enabled() && memory_access_is_direct(mr, is_write)) {
         hwaddr page = ((addr & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE) - addr;
         *plen = MIN(page, *plen);
     }
 
-    *xlat = addr;
     return mr;
 }
 
@@ -978,7 +1015,7 @@ static RAMBlock *qemu_get_ram_block(ram_addr_t addr)
     if (block && addr - block->offset < block->max_length) {
         return block;
     }
-    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+    RAMBLOCK_FOREACH(block) {
         if (addr - block->offset < block->max_length) {
             goto found;
         }
@@ -1333,6 +1370,26 @@ void qemu_mutex_unlock_ramlist(void)
     qemu_mutex_unlock(&ram_list.mutex);
 }
 
+void ram_block_dump(Monitor *mon)
+{
+    RAMBlock *block;
+    char *psize;
+
+    rcu_read_lock();
+    monitor_printf(mon, "%24s %8s  %18s %18s %18s\n",
+                   "Block Name", "PSize", "Offset", "Used", "Total");
+    RAMBLOCK_FOREACH(block) {
+        psize = size_to_str(block->page_size);
+        monitor_printf(mon, "%24s %8s  0x%016" PRIx64 " 0x%016" PRIx64
+                       " 0x%016" PRIx64 "\n", block->idstr, psize,
+                       (uint64_t)block->offset,
+                       (uint64_t)block->used_length,
+                       (uint64_t)block->max_length);
+        g_free(psize);
+    }
+    rcu_read_unlock();
+}
+
 #ifdef __linux__
 /*
  * FIXME TOCTTOU: this iterates over memory backends' mem-path, which
@@ -1578,12 +1635,12 @@ static ram_addr_t find_ram_offset(ram_addr_t size)
         return 0;
     }
 
-    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+    RAMBLOCK_FOREACH(block) {
         ram_addr_t end, next = RAM_ADDR_MAX;
 
         end = block->offset + block->max_length;
 
-        QLIST_FOREACH_RCU(next_block, &ram_list.blocks, next) {
+        RAMBLOCK_FOREACH(next_block) {
             if (next_block->offset >= end) {
                 next = MIN(next, next_block->offset);
             }
@@ -1609,7 +1666,7 @@ unsigned long last_ram_page(void)
     ram_addr_t last = 0;
 
     rcu_read_lock();
-    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+    RAMBLOCK_FOREACH(block) {
         last = MAX(last, block->offset + block->max_length);
     }
     rcu_read_unlock();
@@ -1659,7 +1716,7 @@ void qemu_ram_set_idstr(RAMBlock *new_block, const char *name, DeviceState *dev)
     pstrcat(new_block->idstr, sizeof(new_block->idstr), name);
 
     rcu_read_lock();
-    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+    RAMBLOCK_FOREACH(block) {
         if (block != new_block &&
             !strcmp(block->idstr, new_block->idstr)) {
             fprintf(stderr, "RAMBlock \"%s\" already registered, abort!\n",
@@ -1693,7 +1750,7 @@ size_t qemu_ram_pagesize_largest(void)
     RAMBlock *block;
     size_t largest = 0;
 
-    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+    RAMBLOCK_FOREACH(block) {
         largest = MAX(largest, qemu_ram_pagesize(block));
     }
 
@@ -1839,7 +1896,7 @@ static void ram_block_add(RAMBlock *new_block, Error **errp)
      * QLIST (which has an RCU-friendly variant) does not have insertion at
      * tail, so save the last element in last_block.
      */
-    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+    RAMBLOCK_FOREACH(block) {
         last_block = block;
         if (block->max_length < new_block->max_length) {
             break;
@@ -2021,7 +2078,7 @@ void qemu_ram_remap(ram_addr_t addr, ram_addr_t length)
     int flags;
     void *area, *vaddr;
 
-    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+    RAMBLOCK_FOREACH(block) {
         offset = addr - block->offset;
         if (offset < block->max_length) {
             vaddr = ramblock_ptr(block, offset);
@@ -2084,10 +2141,10 @@ void *qemu_map_ram_ptr(RAMBlock *ram_block, ram_addr_t addr)
          * In that case just map until the end of the page.
          */
         if (block->offset == 0) {
-            return xen_map_cache(addr, 0, 0);
+            return xen_map_cache(addr, 0, 0, false);
         }
 
-        block->host = xen_map_cache(block->offset, block->max_length, 1);
+        block->host = xen_map_cache(block->offset, block->max_length, 1, false);
     }
     return ramblock_ptr(block, addr);
 }
@@ -2117,10 +2174,10 @@ static void *qemu_ram_ptr_length(RAMBlock *ram_block, ram_addr_t addr,
          * In that case just map the requested area.
          */
         if (block->offset == 0) {
-            return xen_map_cache(addr, *size, 1);
+            return xen_map_cache(addr, *size, 1, true);
         }
 
-        block->host = xen_map_cache(block->offset, block->max_length, 1);
+        block->host = xen_map_cache(block->offset, block->max_length, 1, true);
     }
 
     return ramblock_ptr(block, addr);
@@ -2167,7 +2224,7 @@ RAMBlock *qemu_ram_block_from_host(void *ptr, bool round_offset,
         goto found;
     }
 
-    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+    RAMBLOCK_FOREACH(block) {
         /* This case append when the block is not mapped. */
         if (block->host == NULL) {
             continue;
@@ -2200,7 +2257,7 @@ RAMBlock *qemu_ram_block_by_name(const char *name)
 {
     RAMBlock *block;
 
-    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+    RAMBLOCK_FOREACH(block) {
         if (!strcmp(name, block->idstr)) {
             return block;
         }
@@ -3424,7 +3481,7 @@ int qemu_ram_foreach_block(RAMBlockIterFunc func, void *opaque)
     int ret = 0;
 
     rcu_read_lock();
-    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+    RAMBLOCK_FOREACH(block) {
         ret = func(block->idstr, block->host, block->offset,
                    block->used_length, opaque);
         if (ret) {

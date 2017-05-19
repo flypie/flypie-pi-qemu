@@ -2050,6 +2050,7 @@ typedef enum DisplayType {
     DT_SDL,
     DT_COCOA,
     DT_GTK,
+    DT_EGL,
     DT_NONE,
 } DisplayType;
 
@@ -2127,6 +2128,15 @@ static DisplayType select_display(const char *p)
             error_report("VNC requires a display argument vnc=<display>");
             exit(1);
         }
+    } else if (strstart(p, "egl-headless", &opts)) {
+#ifdef CONFIG_OPENGL
+        request_opengl = 1;
+        display_opengl = 1;
+        display = DT_EGL;
+#else
+        fprintf(stderr, "egl support is disabled\n");
+        exit(1);
+#endif
     } else if (strstart(p, "curses", &opts)) {
 #ifdef CONFIG_CURSES
         display = DT_CURSES;
@@ -4504,7 +4514,7 @@ int main(int argc, char **argv, char **envp)
     default_drive(default_floppy, snapshot, IF_FLOPPY, 0, FD_OPTS);
     default_drive(default_sdcard, snapshot, IF_SD, 0, SD_OPTS);
 
-    parse_numa_opts(machine_class);
+    parse_numa_opts(current_machine);
 
     if (qemu_opts_foreach(qemu_find_opts("mon"),
                           mon_init_func, NULL, NULL)) {
@@ -4560,7 +4570,7 @@ int main(int argc, char **argv, char **envp)
     current_machine->boot_order = boot_order;
     current_machine->cpu_model = cpu_model;
 
-    machine_class->init(current_machine);
+    machine_run_board_init(current_machine);
 
     realtime_init();
 
@@ -4592,8 +4602,6 @@ int main(int argc, char **argv, char **envp)
     }
 
     cpu_synchronize_all_post_init();
-
-    numa_post_machine_init();
 
     rom_reset_order_override();
 
@@ -4660,6 +4668,12 @@ int main(int argc, char **argv, char **envp)
         qemu_spice_display_init();
     }
 
+#ifdef CONFIG_OPENGL
+    if (display_type == DT_EGL) {
+        egl_headless_init();
+    }
+#endif
+
     if (foreach_device_config(DEV_GDB, gdbserver_start) < 0) {
         exit(1);
     }
@@ -4687,7 +4701,9 @@ int main(int argc, char **argv, char **envp)
     if (replay_mode != REPLAY_MODE_NONE) {
         replay_vmstate_init();
     } else if (loadvm) {
-        if (load_vmstate(loadvm) < 0) {
+        Error *local_err = NULL;
+        if (load_vmstate(loadvm, &local_err) < 0) {
+            error_report_err(local_err);
             autostart = 0;
         }
     }

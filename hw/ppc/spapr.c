@@ -219,7 +219,7 @@ static void spapr_populate_pa_features(CPUPPCState *env, void *fdt, int offset,
         /* 16: Vector */
         0x00, 0x00, 0x00, 0x00, 0x80, 0x00, /* 12 - 17 */
         /* 18: Vec. Scalar, 20: Vec. XOR, 22: HTM */
-        0x80, 0x00, 0x80, 0x00, 0x80, 0x00, /* 18 - 23 */
+        0x80, 0x00, 0x80, 0x00, 0x00, 0x00, /* 18 - 23 */
         /* 24: Ext. Dec, 26: 64 bit ftrs, 28: PM ftrs */
         0x80, 0x00, 0x80, 0x00, 0x80, 0x00, /* 24 - 29 */
         /* 30: MMR, 32: LE atomic, 34: EBB + ext EBB */
@@ -855,6 +855,8 @@ static void spapr_dt_rtas(sPAPRMachineState *spapr, void *fdt)
  * option vector 5: */
 static void spapr_dt_ov5_platform_support(void *fdt, int chosen)
 {
+    PowerPCCPU *first_ppc_cpu = POWERPC_CPU(first_cpu);
+
     char val[2 * 3] = {
         24, 0x00, /* Hash/Radix, filled in below. */
         25, 0x00, /* Hash options: Segment Tables == no, GTSE == no. */
@@ -870,8 +872,13 @@ static void spapr_dt_ov5_platform_support(void *fdt, int chosen)
             val[1] = 0x00; /* Hash */
         }
     } else {
-        /* TODO: TCG case, hash */
-        val[1] = 0x00;
+        if (first_ppc_cpu->env.mmu_model & POWERPC_MMU_V3) {
+            /* V3 MMU supports both hash and radix (with dynamic switching) */
+            val[1] = 0xC0;
+        } else {
+            /* Otherwise we can only do hash */
+            val[1] = 0x00;
+        }
     }
     _FDT(fdt_setprop(fdt, chosen, "ibm,arch-vec-5-platform-support",
                      val, sizeof(val)));
@@ -2101,8 +2108,8 @@ static void ppc_spapr_init(MachineState *machine)
     }
 
     spapr_ovec_set(spapr->ov5, OV5_FORM1_AFFINITY);
-    if (kvmppc_has_cap_mmu_radix()) {
-        /* KVM always allows GTSE with radix... */
+    if (!kvm_enabled() || kvmppc_has_cap_mmu_radix()) {
+        /* KVM and TCG always allow GTSE with radix... */
         spapr_ovec_set(spapr->ov5, OV5_MMU_RADIX_GTSE);
     }
     /* ... but not with hash (currently). */
@@ -2824,9 +2831,11 @@ static void spapr_core_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     MachineClass *mc = MACHINE_GET_CLASS(hotplug_dev);
     Error *local_err = NULL;
     CPUCore *cc = CPU_CORE(dev);
+    sPAPRCPUCore *sc = SPAPR_CPU_CORE(dev);
     char *base_core_type = spapr_get_cpu_core_type(machine->cpu_model);
     const char *type = object_get_typename(OBJECT(dev));
     CPUArchId *core_slot;
+    int node_id;
     int index;
 
     if (dev->hotplugged && !mc->has_hotpluggable_cpus) {
@@ -2858,6 +2867,21 @@ static void spapr_core_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
 
     if (core_slot->cpu) {
         error_setg(&local_err, "core %d already populated", cc->core_id);
+        goto out;
+    }
+
+    node_id = core_slot->props.node_id;
+    if (!core_slot->props.has_node_id) {
+        /* by default CPUState::numa_node was 0 if it's not set via CLI
+         * keep it this way for now but in future we probably should
+         * refuse to start up with incomplete numa mapping */
+        node_id = 0;
+    }
+    if (sc->node_id == CPU_UNSET_NUMA_NODE_ID) {
+        sc->node_id = node_id;
+    } else if (sc->node_id != node_id) {
+        error_setg(&local_err, "node-id %d must match numa node specified"
+            "with -numa option for cpu-index %d", sc->node_id, cc->core_id);
         goto out;
     }
 
@@ -2981,11 +3005,18 @@ static HotplugHandler *spapr_get_hotplug_handler(MachineState *machine,
     return NULL;
 }
 
-static unsigned spapr_cpu_index_to_socket_id(unsigned cpu_index)
+static CpuInstanceProperties
+spapr_cpu_index_to_props(MachineState *machine, unsigned cpu_index)
 {
-    /* Allocate to NUMA nodes on a "socket" basis (not that concept of
-     * socket means much for the paravirtualized PAPR platform) */
-    return cpu_index / smp_threads / smp_cores;
+    CPUArchId *core_slot;
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
+
+    /* make sure possible_cpu are intialized */
+    mc->possible_cpu_arch_ids(machine);
+    /* get CPU core slot containing thread that matches cpu_index */
+    core_slot = spapr_find_cpu_slot(machine, cpu_index, NULL);
+    assert(core_slot);
+    return core_slot->props;
 }
 
 static const CPUArchIdList *spapr_possible_cpu_arch_ids(MachineState *machine)
@@ -3012,8 +3043,15 @@ static const CPUArchIdList *spapr_possible_cpu_arch_ids(MachineState *machine)
         machine->possible_cpus->cpus[i].arch_id = core_id;
         machine->possible_cpus->cpus[i].props.has_core_id = true;
         machine->possible_cpus->cpus[i].props.core_id = core_id;
-        /* TODO: add 'has_node/node' here to describe
-           to which node core belongs */
+
+        /* default distribution of CPUs over NUMA nodes */
+        if (nb_numa_nodes) {
+            /* preset values but do not enable them i.e. 'has_node_id = false',
+             * numa init code will enable them later if manual mapping wasn't
+             * present on CLI */
+            machine->possible_cpus->cpus[i].props.node_id =
+                core_id / smp_threads / smp_cores % nb_numa_nodes;
+        }
     }
     return machine->possible_cpus;
 }
@@ -3138,7 +3176,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     hc->pre_plug = spapr_machine_device_pre_plug;
     hc->plug = spapr_machine_device_plug;
     hc->unplug = spapr_machine_device_unplug;
-    mc->cpu_index_to_socket_id = spapr_cpu_index_to_socket_id;
+    mc->cpu_index_to_instance_props = spapr_cpu_index_to_props;
     mc->possible_cpu_arch_ids = spapr_possible_cpu_arch_ids;
     hc->unplug_request = spapr_machine_device_unplug_request;
 
@@ -3242,6 +3280,7 @@ static void spapr_machine_2_9_class_options(MachineClass *mc)
 {
     spapr_machine_2_10_class_options(mc);
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_9);
+    mc->numa_auto_assign_ram = numa_legacy_auto_assign_ram;
 }
 
 DEFINE_SPAPR_MACHINE(2_9, "2.9", false);

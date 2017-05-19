@@ -147,7 +147,7 @@ static struct XenDevice *xen_be_get_xendev(const char *type, int dom, int dev,
         qdev_unplug(DEVICE(xendev), NULL);
         return NULL;
     }
-    fcntl(xenevtchn_fd(xendev->evtchndev), F_SETFD, FD_CLOEXEC);
+    qemu_set_cloexec(xenevtchn_fd(xendev->evtchndev));
 
     if (ops->flags & DEVOPS_FLAG_NEED_GNTDEV) {
         xendev->gnttabdev = xengnttab_open(NULL, 0);
@@ -619,6 +619,8 @@ static void xendev_class_init(ObjectClass *klass, void *data)
 
     dc->props = xendev_properties;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+    /* xen-backend devices can be plugged/unplugged dynamically */
+    dc->user_creatable = true;
 }
 
 static const TypeInfo xendev_type_info = {
