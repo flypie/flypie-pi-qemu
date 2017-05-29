@@ -1,7 +1,7 @@
 /*
- * QEMU System Emulator
+ * QEMUFile backend for QIOChannel objects
  *
- * Copyright (c) 2003-2008 Fabrice Bellard
+ * Copyright (c) 2015-2016 Red Hat, Inc
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,67 +22,11 @@
  * THE SOFTWARE.
  */
 
-#include "qemu/osdep.h"
-#include "qapi/error.h"
-#include "tap_int.h"
+#ifndef QEMU_FILE_CHANNEL_H
+#define QEMU_FILE_CHANNEL_H
 
-int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
-             int vnet_hdr_required, int mq_required, Error **errp)
-{
-    error_setg(errp, "no tap on AIX");
-    return -1;
-}
+#include "io/channel.h"
 
-void tap_set_sndbuf(int fd, const NetdevTapOptions *tap, Error **errp)
-{
-}
-
-int tap_probe_vnet_hdr(int fd)
-{
-    return 0;
-}
-
-int tap_probe_has_ufo(int fd)
-{
-    return 0;
-}
-
-int tap_probe_vnet_hdr_len(int fd, int len)
-{
-    return 0;
-}
-
-void tap_fd_set_vnet_hdr_len(int fd, int len)
-{
-}
-
-int tap_fd_set_vnet_le(int fd, int is_le)
-{
-    return -EINVAL;
-}
-
-int tap_fd_set_vnet_be(int fd, int is_be)
-{
-    return -EINVAL;
-}
-
-void tap_fd_set_offload(int fd, int csum, int tso4,
-                        int tso6, int ecn, int ufo)
-{
-}
-
-int tap_fd_enable(int fd)
-{
-    return -1;
-}
-
-int tap_fd_disable(int fd)
-{
-    return -1;
-}
-
-int tap_fd_get_ifname(int fd, char *ifname)
-{
-    return -1;
-}
-
+QEMUFile *qemu_fopen_channel_input(QIOChannel *ioc);
+QEMUFile *qemu_fopen_channel_output(QIOChannel *ioc);
+#endif
