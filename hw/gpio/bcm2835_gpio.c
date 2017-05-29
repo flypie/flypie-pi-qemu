@@ -57,7 +57,7 @@ static uint32_t gpfsel_get(BCM2835GpioState *s, uint8_t reg)
     uint32_t value = 0;
     for (i = 0; i < 10; i++) {
         uint32_t index = 10 * reg + i;
-        if (index < sizeof (s->fsel)) {
+        if (index < sizeof(s->fsel)) {
             value |= (s->fsel[index] & 0x7) << (3 * i);
         }
     }
@@ -69,7 +69,7 @@ static void gpfsel_set(BCM2835GpioState *s, uint8_t reg, uint32_t value)
     int i;
     for (i = 0; i < 10; i++) {
         uint32_t index = 10 * reg + i;
-        if (index < sizeof (s->fsel)) {
+        if (index < sizeof(s->fsel)) {
             int fsel = (value >> (3 * i)) & 0x7;
             s->fsel[index] = fsel;
         }
@@ -112,7 +112,7 @@ static int gpfsel_is_out(BCM2835GpioState *s, int index)
 static void gpset(BCM2835GpioState *s,
                   uint32_t val, uint8_t start, uint8_t count, uint32_t *lev)
 {
-    uint32_t changes = val & ~ *lev;
+    uint32_t changes = val & ~*lev;
     uint32_t cur = 1;
 
     int i;
@@ -150,60 +150,60 @@ static uint64_t bcm2835_gpio_read(void *opaque, hwaddr offset, unsigned size)
     uint64_t Data;
 
     switch (offset) {
-        case GPFSEL0:
-        case GPFSEL1:
-        case GPFSEL2:
-        case GPFSEL3:
-        case GPFSEL4:
-        case GPFSEL5:
-            return gpfsel_get(s, offset / 4);
-        case GPSET0:
-        case GPSET1:
-            /* Write Only */
-            return 0;
-        case GPCLR0:
-        case GPCLR1:
-            /* Write Only */
-            return 0;
-        case GPLEV0:
-            if (s->panel.socket != -1) {
-                if (panel_read(&s->panel, &Data)) {
-                    s->lev0 = (uint32_t)Data;
-                    s->lev1 = (uint32_t)(Data >> 32);
-                }
+    case GPFSEL0:
+    case GPFSEL1:
+    case GPFSEL2:
+    case GPFSEL3:
+    case GPFSEL4:
+    case GPFSEL5:
+        return gpfsel_get(s, offset / 4);
+    case GPSET0:
+    case GPSET1:
+        /* Write Only */
+        return 0;
+    case GPCLR0:
+    case GPCLR1:
+        /* Write Only */
+        return 0;
+    case GPLEV0:
+        if (s->panel.socket != -1) {
+            if (panel_read(&s->panel, &Data)) {
+                s->lev0 = (uint32_t)Data;
+                s->lev1 = (uint32_t)(Data >> 32);
             }
-            return s->lev0;
-        case GPLEV1:
-            if (s->panel.socket != -1) {
-                if (panel_read(&s->panel, &Data)) {
-                    s->lev0 = (uint32_t)Data;
-                    s->lev1 = (uint32_t)(Data >> 32);
-                }
+        }
+        return s->lev0;
+    case GPLEV1:
+        if (s->panel.socket != -1) {
+            if (panel_read(&s->panel, &Data)) {
+                s->lev0 = (uint32_t)Data;
+                s->lev1 = (uint32_t)(Data >> 32);
             }
-            return s->lev1;
-        case GPEDS0:
-        case GPEDS1:
-        case GPREN0:
-        case GPREN1:
-        case GPFEN0:
-        case GPFEN1:
-        case GPHEN0:
-        case GPHEN1:
-        case GPLEN0:
-        case GPLEN1:
-        case GPAREN0:
-        case GPAREN1:
-        case GPAFEN0:
-        case GPAFEN1:
-        case GPPUD:
-        case GPPUDCLK0:
-        case GPPUDCLK1:
-            /* Not implemented */
-            return 0;
-        default:
-            qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset %"HWADDR_PRIx"\n",
-                          __func__, offset);
-            break;
+        }
+        return s->lev1;
+    case GPEDS0:
+    case GPEDS1:
+    case GPREN0:
+    case GPREN1:
+    case GPFEN0:
+    case GPFEN1:
+    case GPHEN0:
+    case GPHEN1:
+    case GPLEN0:
+    case GPLEN1:
+    case GPAREN0:
+    case GPAREN1:
+    case GPAFEN0:
+    case GPAFEN1:
+    case GPPUD:
+    case GPPUDCLK0:
+    case GPPUDCLK1:
+        /* Not implemented */
+        return 0;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset %"HWADDR_PRIx"\n",
+                      __func__, offset);
+        break;
     }
 
     return 0;
@@ -217,73 +217,73 @@ static void bcm2835_gpio_write(void *opaque, hwaddr offset,
 
 
     switch (offset) {
-        case GPFSEL0:
-        case GPFSEL1:
-        case GPFSEL2:
-        case GPFSEL3:
-        case GPFSEL4:
-        case GPFSEL5:
-            gpfsel_set(s, offset / 4, value);
-            break;
-        case GPSET0:
-            gpset(s, value, 0, 32, &s->lev0);
-            if (s->panel.socket != -1) {
-                Data = value;
-                /* John Bradley dummy GPIO Panel */
-                senddatatopanel(&s->panel, Data, true);
-            }
-            break;
-        case GPSET1:
-            gpset(s, value, 32, 22, &s->lev1);
-            if (s->panel.socket != -1) {
-                Data = value;
-                Data <<= 32;
-                /* John Bradley dummy GPIO Panel */
-                senddatatopanel(&s->panel, Data, true);
-            }
-            break;
-        case GPCLR0:
-            gpclr(s, value, 0, 32, &s->lev0);
-            if (s->panel.socket != -1) {
-                Data = value;
-                /* John Bradley dummy GPIO Panel */
-                senddatatopanel(&s->panel, Data, false);
-            }
-            break;
-        case GPCLR1:
-            gpclr(s, value, 32, 22, &s->lev1);
-            if (s->panel.socket != -1) {
-                Data = value;
-                Data <<= 32;
-                /* John Bradley dummy GPIO Panel */
-                senddatatopanel(&s->panel, Data, false);
-            }
-            break;
-        case GPLEV0:
-        case GPLEV1:
-            /* Read Only */
-            break;
-        case GPEDS0:
-        case GPEDS1:
-        case GPREN0:
-        case GPREN1:
-        case GPFEN0:
-        case GPFEN1:
-        case GPHEN0:
-        case GPHEN1:
-        case GPLEN0:
-        case GPLEN1:
-        case GPAREN0:
-        case GPAREN1:
-        case GPAFEN0:
-        case GPAFEN1:
-        case GPPUD:
-        case GPPUDCLK0:
-        case GPPUDCLK1:
-            /* Not implemented */
-            break;
-        default:
-            goto err_out;
+    case GPFSEL0:
+    case GPFSEL1:
+    case GPFSEL2:
+    case GPFSEL3:
+    case GPFSEL4:
+    case GPFSEL5:
+        gpfsel_set(s, offset / 4, value);
+        break;
+    case GPSET0:
+        gpset(s, value, 0, 32, &s->lev0);
+        if (s->panel.socket != -1) {
+            Data = value;
+            /* John Bradley dummy GPIO Panel */
+            senddatatopanel(&s->panel, Data, true);
+        }
+        break;
+    case GPSET1:
+        gpset(s, value, 32, 22, &s->lev1);
+        if (s->panel.socket != -1) {
+            Data = value;
+            Data <<= 32;
+            /* John Bradley dummy GPIO Panel */
+            senddatatopanel(&s->panel, Data, true);
+        }
+        break;
+    case GPCLR0:
+        gpclr(s, value, 0, 32, &s->lev0);
+        if (s->panel.socket != -1) {
+            Data = value;
+            /* John Bradley dummy GPIO Panel */
+            senddatatopanel(&s->panel, Data, false);
+        }
+        break;
+    case GPCLR1:
+        gpclr(s, value, 32, 22, &s->lev1);
+        if (s->panel.socket != -1) {
+            Data = value;
+            Data <<= 32;
+            /* John Bradley dummy GPIO Panel */
+            senddatatopanel(&s->panel, Data, false);
+        }
+        break;
+    case GPLEV0:
+    case GPLEV1:
+        /* Read Only */
+        break;
+    case GPEDS0:
+    case GPEDS1:
+    case GPREN0:
+    case GPREN1:
+    case GPFEN0:
+    case GPFEN1:
+    case GPHEN0:
+    case GPHEN1:
+    case GPLEN0:
+    case GPLEN1:
+    case GPAREN0:
+    case GPAREN1:
+    case GPAFEN0:
+    case GPAFEN1:
+    case GPPUD:
+    case GPPUDCLK0:
+    case GPPUDCLK1:
+        /* Not implemented */
+        break;
+    default:
+        goto err_out;
     }
     return;
 
@@ -311,16 +311,16 @@ static void bcm2835_gpio_reset(DeviceState *dev)
 }
 
 static const MemoryRegionOps bcm2835_gpio_ops = {
-                                                 .read = bcm2835_gpio_read,
-                                                 .write = bcm2835_gpio_write,
-                                                 .endianness = DEVICE_NATIVE_ENDIAN,
+        .read = bcm2835_gpio_read,
+        .write = bcm2835_gpio_write,
+        .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static const VMStateDescription vmstate_bcm2835_gpio = {
-                                                        .name = "bcm2835_gpio",
-                                                        .version_id = 1,
-                                                        .minimum_version_id = 1,
-                                                        .fields = (VMStateField[])
+        .name = "bcm2835_gpio",
+        .version_id = 1,
+        .minimum_version_id = 1,
+        .fields = (VMStateField[])
     {
      VMSTATE_UINT8_ARRAY(fsel, BCM2835GpioState, 54),
      VMSTATE_UINT32(lev0, BCM2835GpioState),
@@ -336,7 +336,7 @@ static void bcm2835_gpio_init(Object *obj)
     DeviceState *dev = DEVICE(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
-    qbus_create_inplace(&s->sdbus, sizeof (s->sdbus),
+    qbus_create_inplace(&s->sdbus, sizeof(s->sdbus),
                         TYPE_SD_BUS, DEVICE(s), "sd-bus");
 
     memory_region_init_io(&s->iomem, obj,
@@ -394,7 +394,7 @@ static void bcm2835_gpio_class_init(ObjectClass *klass, void *data)
 static const TypeInfo bcm2835_gpio_info = {
                                            .name = TYPE_BCM2835_GPIO,
                                            .parent = TYPE_SYS_BUS_DEVICE,
-                                           .instance_size = sizeof (BCM2835GpioState),
+                                           .instance_size = sizeof(BCM2835GpioState),
                                            .instance_init = bcm2835_gpio_init,
                                            .class_init = bcm2835_gpio_class_init,
 };

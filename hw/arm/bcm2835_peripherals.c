@@ -441,7 +441,7 @@ static void bcm2835_peripherals_class_init(ObjectClass *oc, void *data)
 
     dc->realize = bcm2835_peripherals_realize;
     /* Reason: realize() method uses qemu_char_get_next_serial() */
-    dc->user_creatable=false;
+    dc->user_creatable = false;
 }
 
 static const TypeInfo bcm2835_peripherals_type_info = {

@@ -31,7 +31,7 @@ extern "C" {
         int socket; /* socket we'll connect to the panel with */
         fd_set fds; /* list of descriptors (only the above socket */
         char last[PANEL_PINS / 8]; /* we don't want to send updates to the panel
-	                       unless something changed */
+                                   unless something changed */
         int ProtocolInUse; /*What version of the protocol are we using. */
     } panel_connection_t;
 

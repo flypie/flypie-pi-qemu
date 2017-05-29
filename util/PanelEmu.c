@@ -20,8 +20,7 @@
 
 #include "qemu/PanelEmu.h"
 
-typedef enum
-{
+typedef enum {
     PROTOCOLDESCFROMQEMU = 0,
     PROTOCOLDESCFROMPANEL = 1,
     PINSTOPANEL = 2,
@@ -41,8 +40,7 @@ typedef enum
 #define PACKETLEN   0  /* Includes Packet Length */
 #define PACKETTYPE  1
 
-typedef struct
-{
+typedef struct {
     unsigned short int Data[MAXPACKET];
 } CommandPacket;
 
@@ -167,6 +165,7 @@ bool panel_read(panel_connection_t *h, uint64_t* Data)
     struct timeval timeout;
 
     int ReadStart = 0;
+    int i , j;
 
     timeout.tv_sec = 0;
     timeout.tv_usec = 0;
@@ -176,7 +175,7 @@ bool panel_read(panel_connection_t *h, uint64_t* Data)
         efds = h->fds;
 
         Pkt = PktPtr;
-        while (NoError&&! NoData) {
+        while (NoError && !NoData) {
             select_res = select(h->socket + 1, &rfds, NULL, &efds, &timeout);
             if (select_res > 0) {
                 if (FD_ISSET(h->socket, &rfds)) {
@@ -185,7 +184,7 @@ bool panel_read(panel_connection_t *h, uint64_t* Data)
                                     sizeof(*Pkt) - ReadStart, 0);
                     if (LengthInBuffer > 0) {
                         LengthInBuffer += ReadStart;
-                        for (int i = 0; LengthInBuffer > 0; i ++) {
+                        for (i = 0; LengthInBuffer > 0; i++) {
                             if (LengthInBuffer >= Pkt->Data[i + PACKETLEN]) {
                                 switch (Pkt->Data[i + PACKETTYPE]) {
                                 case PINSTOQEMU:
@@ -215,7 +214,7 @@ bool panel_read(panel_connection_t *h, uint64_t* Data)
                                 i += Pkt->Data[PACKETLEN];
                             } else {
                                 ReadStart = LengthInBuffer;
-                                for (int j = 0; j < LengthInBuffer; j ++) {
+                                for (j = 0; j < LengthInBuffer; j++) {
                                     Pkt->Data[j] = Pkt->Data[i + j];
                                 }
                                 printf(PANEL_NAME "Partial Packet Read");
