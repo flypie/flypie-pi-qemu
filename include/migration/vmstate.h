@@ -59,14 +59,6 @@ typedef struct SaveVMHandlers {
     LoadStateHandler *load_state;
 } SaveVMHandlers;
 
-int register_savevm(DeviceState *dev,
-                    const char *idstr,
-                    int instance_id,
-                    int version_id,
-                    SaveStateHandler *save_state,
-                    LoadStateHandler *load_state,
-                    void *opaque);
-
 int register_savevm_live(DeviceState *dev,
                          const char *idstr,
                          int instance_id,
@@ -1019,8 +1011,6 @@ extern const VMStateInfo vmstate_info_qtailq;
     {}
 
 #define SELF_ANNOUNCE_ROUNDS 5
-
-void loadvm_free_handlers(MigrationIncomingState *mis);
 
 int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                        void *opaque, int version_id);

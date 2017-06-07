@@ -1369,7 +1369,8 @@ out:
     }
 }
 
-static void spapr_phb_remove_pci_device_cb(DeviceState *dev, void *opaque)
+/* Callback to be called during DRC release. */
+void spapr_phb_remove_pci_device_cb(DeviceState *dev)
 {
     /* some version guests do not wait for completion of a device
      * cleanup (generally done asynchronously by the kernel) before
@@ -1392,17 +1393,15 @@ static void spapr_phb_remove_pci_device(sPAPRDRConnector *drc,
 {
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
 
-    drck->detach(drc, DEVICE(pdev), spapr_phb_remove_pci_device_cb, phb, errp);
+    drck->detach(drc, DEVICE(pdev), errp);
 }
 
 static sPAPRDRConnector *spapr_phb_get_pci_func_drc(sPAPRPHBState *phb,
                                                     uint32_t busnr,
                                                     int32_t devfn)
 {
-    return spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_PCI,
-                                    (phb->index << 16) |
-                                    (busnr << 8) |
-                                    devfn);
+    return spapr_drc_by_id(TYPE_SPAPR_DRC_PCI,
+                           (phb->index << 16) | (busnr << 8) | devfn);
 }
 
 static sPAPRDRConnector *spapr_phb_get_pci_drc(sPAPRPHBState *phb,
@@ -1416,14 +1415,12 @@ static uint32_t spapr_phb_get_pci_drc_index(sPAPRPHBState *phb,
                                             PCIDevice *pdev)
 {
     sPAPRDRConnector *drc = spapr_phb_get_pci_drc(phb, pdev);
-    sPAPRDRConnectorClass *drck;
 
     if (!drc) {
         return 0;
     }
 
-    drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-    return drck->get_index(drc);
+    return spapr_drc_index(drc);
 }
 
 static void spapr_phb_hot_plug_child(HotplugHandler *plug_handler,
@@ -1762,8 +1759,7 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     /* allocate connectors for child PCI devices */
     if (sphb->dr_enabled) {
         for (i = 0; i < PCI_SLOT_MAX * 8; i++) {
-            spapr_dr_connector_new(OBJECT(phb),
-                                   SPAPR_DR_CONNECTOR_TYPE_PCI,
+            spapr_dr_connector_new(OBJECT(phb), TYPE_SPAPR_DRC_PCI,
                                    (sphb->index << 16) | i);
         }
     }

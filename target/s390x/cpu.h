@@ -88,6 +88,10 @@ typedef struct CPUS390XState {
      */
     CPU_DoubleU vregs[32][2];  /* vector registers */
     uint32_t aregs[16];    /* access registers */
+    uint8_t riccb[64];     /* runtime instrumentation control */
+
+    /* Fields up to this point are not cleared by initial CPU reset */
+    struct {} start_initial_reset_fields;
 
     uint32_t fpc;          /* floating-point control register */
     uint32_t cc_op;
@@ -102,6 +106,8 @@ typedef struct CPUS390XState {
     uint64_t cc_src;
     uint64_t cc_dst;
     uint64_t cc_vr;
+
+    uint64_t ex_value;
 
     uint64_t __excp_addr;
     uint64_t psa;
@@ -136,8 +142,6 @@ typedef struct CPUS390XState {
 
     uint64_t gbea;
     uint64_t pp;
-
-    uint8_t riccb[64];
 
     /* Fields up to this point are cleared by a CPU reset */
     struct {} end_reset_fields;
@@ -391,7 +395,7 @@ static inline void cpu_get_tb_cpu_state(CPUS390XState* env, target_ulong *pc,
                                         target_ulong *cs_base, uint32_t *flags)
 {
     *pc = env->psw.addr;
-    *cs_base = 0;
+    *cs_base = env->ex_value;
     *flags = ((env->psw.mask >> 32) & ~FLAG_MASK_CC) |
              ((env->psw.mask & PSW_MASK_32) ? FLAG_MASK_32 : 0);
 }
@@ -1031,6 +1035,8 @@ struct sysib_322 {
 #define _SEGMENT_ENTRY_RO       0x200     /* page protection bit              */
 #define _SEGMENT_ENTRY_INV      0x20      /* invalid segment table entry      */
 
+#define VADDR_PX                0xff000   /* page index bits                  */
+
 #define _PAGE_RO        0x200            /* HW read-only bit  */
 #define _PAGE_INVALID   0x400            /* HW invalid bit    */
 #define _PAGE_RES0      0x800            /* bit must be zero  */
@@ -1082,6 +1088,7 @@ struct sysib_322 {
 #define SIGP_ORDER_MASK 0x000000ff
 
 void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr);
+target_ulong mmu_real2abs(CPUS390XState *env, target_ulong raddr);
 int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
                   target_ulong *raddr, int *flags, bool exc);
 int sclp_service_call(CPUS390XState *env, uint64_t sccb, uint32_t code);
@@ -1254,6 +1261,16 @@ static inline void s390_crypto_reset(void)
     if (kvm_enabled()) {
         kvm_s390_crypto_reset();
     }
+}
+
+static inline bool s390_get_squash_mcss(void)
+{
+    if (object_property_get_bool(OBJECT(qdev_get_machine()), "s390-squash-mcss",
+                                 NULL)) {
+        return true;
+    }
+
+    return false;
 }
 
 /* machine check interruption code */

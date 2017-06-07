@@ -80,8 +80,6 @@ void HELPER(exception)(CPUS390XState *env, uint32_t excp)
     cpu_loop_exit(cs);
 }
 
-#ifndef CONFIG_USER_ONLY
-
 void program_interrupt(CPUS390XState *env, uint32_t code, int ilen)
 {
     S390CPU *cpu = s390_env_get_cpu(env);
@@ -107,6 +105,8 @@ void program_interrupt(CPUS390XState *env, uint32_t code, int ilen)
         cpu_loop_exit(cs);
     }
 }
+
+#ifndef CONFIG_USER_ONLY
 
 /* SCLP service call */
 uint32_t HELPER(servc)(CPUS390XState *env, uint64_t r1, uint64_t r2)
@@ -532,11 +532,11 @@ uint32_t HELPER(sigp)(CPUS390XState *env, uint64_t order_code, uint32_t r1,
         break;
 #if !defined(CONFIG_USER_ONLY)
     case SIGP_RESTART:
-        qemu_system_reset_request();
+        qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
         cpu_loop_exit(CPU(s390_env_get_cpu(env)));
         break;
     case SIGP_STOP:
-        qemu_system_shutdown_request();
+        qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
         cpu_loop_exit(CPU(s390_env_get_cpu(env)));
         break;
 #endif
