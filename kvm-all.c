@@ -23,6 +23,7 @@
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
+#include "qapi/error.h"
 #include "hw/hw.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
@@ -1144,6 +1145,7 @@ void kvm_irqchip_release_virq(KVMState *s, int virq)
     }
     clear_gsi(s, virq);
     kvm_arch_release_virq_post(virq);
+    trace_kvm_irqchip_release_virq(virq);
 }
 
 static unsigned int kvm_hash_msi(uint32_t data)
@@ -1287,7 +1289,8 @@ int kvm_irqchip_add_msi_route(KVMState *s, int vector, PCIDevice *dev)
         return -EINVAL;
     }
 
-    trace_kvm_irqchip_add_msi_route(virq);
+    trace_kvm_irqchip_add_msi_route(dev ? dev->name : (char *)"N/A",
+                                    vector, virq);
 
     kvm_add_routing_entry(s, &kroute);
     kvm_arch_add_msi_route_post(&kroute, vector, dev);
@@ -1746,6 +1749,8 @@ static int kvm_init(MachineState *ms)
     kvm_ioeventfd_any_length_allowed =
         (kvm_check_extension(s, KVM_CAP_IOEVENTFD_ANY_LENGTH) > 0);
 
+    kvm_state = s;
+
     ret = kvm_arch_init(ms, s);
     if (ret < 0) {
         goto err;
@@ -1754,8 +1759,6 @@ static int kvm_init(MachineState *ms)
     if (machine_kernel_irqchip_allowed(ms)) {
         kvm_irqchip_create(ms, s);
     }
-
-    kvm_state = s;
 
     if (kvm_eventfds_allowed) {
         s->memory_listener.listener.eventfd_add = kvm_mem_ioeventfd_add;
@@ -2214,8 +2217,8 @@ int kvm_device_check_attr(int dev_fd, uint32_t group, uint64_t attr)
     return kvm_device_ioctl(dev_fd, KVM_HAS_DEVICE_ATTR, &attribute) ? 0 : 1;
 }
 
-void kvm_device_access(int fd, int group, uint64_t attr,
-                       void *val, bool write)
+int kvm_device_access(int fd, int group, uint64_t attr,
+                      void *val, bool write, Error **errp)
 {
     struct kvm_device_attr kvmattr;
     int err;
@@ -2229,11 +2232,12 @@ void kvm_device_access(int fd, int group, uint64_t attr,
                            write ? KVM_SET_DEVICE_ATTR : KVM_GET_DEVICE_ATTR,
                            &kvmattr);
     if (err < 0) {
-        error_report("KVM_%s_DEVICE_ATTR failed: %s",
-                     write ? "SET" : "GET", strerror(-err));
-        error_printf("Group %d attr 0x%016" PRIx64 "\n", group, attr);
-        abort();
+        error_setg_errno(errp, -err,
+                         "KVM_%s_DEVICE_ATTR failed: Group %d "
+                         "attr 0x%016" PRIx64,
+                         write ? "SET" : "GET", group, attr);
     }
+    return err;
 }
 
 /* Return 1 on success, 0 on failure */
