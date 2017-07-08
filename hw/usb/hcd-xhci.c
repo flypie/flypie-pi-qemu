@@ -1912,6 +1912,8 @@ static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid)
         }
         assert(!xfer->running_retry);
         if (xfer->complete) {
+            /* update ring dequeue ptr */
+            xhci_set_ep_state(xhci, epctx, stctx, epctx->state);
             xhci_ep_free_xfer(epctx->retry);
         }
         epctx->retry = NULL;
@@ -1962,6 +1964,8 @@ static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid)
             xhci_fire_transfer(xhci, xfer, epctx);
         }
         if (xfer->complete) {
+            /* update ring dequeue ptr */
+            xhci_set_ep_state(xhci, epctx, stctx, epctx->state);
             xhci_ep_free_xfer(xfer);
             xfer = NULL;
         }
@@ -1979,8 +1983,6 @@ static void xhci_kick_epctx(XHCIEPContext *epctx, unsigned int streamid)
             break;
         }
     }
-    /* update ring dequeue ptr */
-    xhci_set_ep_state(xhci, epctx, stctx, epctx->state);
     epctx->kick_active--;
 
     ep = xhci_epid_to_usbep(epctx);
@@ -3417,7 +3419,7 @@ static void usb_xhci_realize(struct PCIDevice *dev, Error **errp)
     if (pci_bus_is_express(dev->bus) ||
         xhci_get_flag(xhci, XHCI_FLAG_FORCE_PCIE_ENDCAP)) {
         ret = pcie_endpoint_cap_init(dev, 0xa0);
-        assert(ret >= 0);
+        assert(ret > 0);
     }
 
     if (xhci->msix != ON_OFF_AUTO_OFF) {

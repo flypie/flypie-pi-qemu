@@ -216,8 +216,10 @@ BlockBackend *blk_new(uint64_t perm, uint64_t shared_perm)
     blk->shared_perm = shared_perm;
     blk_set_enable_write_cache(blk, true);
 
+    qemu_co_mutex_init(&blk->public.throttled_reqs_lock);
     qemu_co_queue_init(&blk->public.throttled_reqs[0]);
     qemu_co_queue_init(&blk->public.throttled_reqs[1]);
+    block_acct_init(&blk->stats);
 
     notifier_list_init(&blk->remove_bs_notifiers);
     notifier_list_init(&blk->insert_bs_notifiers);
@@ -1097,9 +1099,9 @@ int blk_pread_unthrottled(BlockBackend *blk, int64_t offset, uint8_t *buf,
 }
 
 int blk_pwrite_zeroes(BlockBackend *blk, int64_t offset,
-                      int count, BdrvRequestFlags flags)
+                      int bytes, BdrvRequestFlags flags)
 {
-    return blk_prw(blk, offset, NULL, count, blk_write_entry,
+    return blk_prw(blk, offset, NULL, bytes, blk_write_entry,
                    flags | BDRV_REQ_ZERO_WRITE);
 }
 
@@ -1309,10 +1311,10 @@ static void blk_aio_pdiscard_entry(void *opaque)
 }
 
 BlockAIOCB *blk_aio_pdiscard(BlockBackend *blk,
-                             int64_t offset, int count,
+                             int64_t offset, int bytes,
                              BlockCompletionFunc *cb, void *opaque)
 {
-    return blk_aio_prwv(blk, offset, count, NULL, blk_aio_pdiscard_entry, 0,
+    return blk_aio_prwv(blk, offset, bytes, NULL, blk_aio_pdiscard_entry, 0,
                         cb, opaque);
 }
 
@@ -1372,14 +1374,14 @@ BlockAIOCB *blk_aio_ioctl(BlockBackend *blk, unsigned long int req, void *buf,
     return blk_aio_prwv(blk, req, 0, &qiov, blk_aio_ioctl_entry, 0, cb, opaque);
 }
 
-int blk_co_pdiscard(BlockBackend *blk, int64_t offset, int count)
+int blk_co_pdiscard(BlockBackend *blk, int64_t offset, int bytes)
 {
-    int ret = blk_check_byte_request(blk, offset, count);
+    int ret = blk_check_byte_request(blk, offset, bytes);
     if (ret < 0) {
         return ret;
     }
 
-    return bdrv_co_pdiscard(blk_bs(blk), offset, count);
+    return bdrv_co_pdiscard(blk_bs(blk), offset, bytes);
 }
 
 int blk_co_flush(BlockBackend *blk)
@@ -1758,9 +1760,9 @@ void *blk_aio_get(const AIOCBInfo *aiocb_info, BlockBackend *blk,
 }
 
 int coroutine_fn blk_co_pwrite_zeroes(BlockBackend *blk, int64_t offset,
-                                      int count, BdrvRequestFlags flags)
+                                      int bytes, BdrvRequestFlags flags)
 {
-    return blk_co_pwritev(blk, offset, count, NULL,
+    return blk_co_pwritev(blk, offset, bytes, NULL,
                           flags | BDRV_REQ_ZERO_WRITE);
 }
 
@@ -1787,9 +1789,9 @@ static void blk_pdiscard_entry(void *opaque)
     rwco->ret = blk_co_pdiscard(rwco->blk, rwco->offset, rwco->qiov->size);
 }
 
-int blk_pdiscard(BlockBackend *blk, int64_t offset, int count)
+int blk_pdiscard(BlockBackend *blk, int64_t offset, int bytes)
 {
-    return blk_prw(blk, offset, NULL, count, blk_pdiscard_entry, 0);
+    return blk_prw(blk, offset, NULL, bytes, blk_pdiscard_entry, 0);
 }
 
 int blk_save_vmstate(BlockBackend *blk, const uint8_t *buf,
@@ -1953,7 +1955,7 @@ static void blk_root_drained_begin(BdrvChild *child)
     /* Note that blk->root may not be accessible here yet if we are just
      * attaching to a BlockDriverState that is drained. Use child instead. */
 
-    if (blk->public.io_limits_disabled++ == 0) {
+    if (atomic_fetch_inc(&blk->public.io_limits_disabled) == 0) {
         throttle_group_restart_blk(blk);
     }
 }
@@ -1964,7 +1966,7 @@ static void blk_root_drained_end(BdrvChild *child)
     assert(blk->quiesce_counter);
 
     assert(blk->public.io_limits_disabled);
-    --blk->public.io_limits_disabled;
+    atomic_dec(&blk->public.io_limits_disabled);
 
     if (--blk->quiesce_counter == 0) {
         if (blk->dev_ops && blk->dev_ops->drained_end) {

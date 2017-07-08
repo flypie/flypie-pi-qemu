@@ -347,7 +347,7 @@ static int check_fdc(Object *obj, void *opaque)
         return 0;
     }
 
-    iobase = object_property_get_int(obj, "iobase", &local_err);
+    iobase = object_property_get_uint(obj, "iobase", &local_err);
     if (local_err || iobase != 0x3f0) {
         error_free(local_err);
         return 0;
@@ -1098,7 +1098,7 @@ static void pc_new_cpu(const char *typename, int64_t apic_id, Error **errp)
 
     cpu = object_new(typename);
 
-    object_property_set_int(cpu, apic_id, "apic-id", &local_err);
+    object_property_set_uint(cpu, apic_id, "apic-id", &local_err);
     object_property_set_bool(cpu, true, "realized", &local_err);
 
     object_unref(cpu);
@@ -1558,7 +1558,7 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
              * and earlier, use IRQ2 for compat. Otherwise, use IRQ16~23,
              * IRQ8 and IRQ2.
              */
-            uint8_t compat = object_property_get_int(OBJECT(hpet),
+            uint8_t compat = object_property_get_uint(OBJECT(hpet),
                     HPET_INTCAP, NULL);
             if (!compat) {
                 qdev_prop_set_uint32(hpet, HPET_INTCAP, hpet_irqs);
@@ -1692,6 +1692,7 @@ static void pc_dimm_plug(HotplugHandler *hotplug_dev,
     PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
     MemoryRegion *mr = ddc->get_memory_region(dimm);
     uint64_t align = TARGET_PAGE_SIZE;
+    bool is_nvdimm = object_dynamic_cast(OBJECT(dev), TYPE_NVDIMM);
 
     if (memory_region_get_alignment(mr) && pcmc->enforce_aligned_dimm) {
         align = memory_region_get_alignment(mr);
@@ -1703,17 +1704,18 @@ static void pc_dimm_plug(HotplugHandler *hotplug_dev,
         goto out;
     }
 
+    if (is_nvdimm && !pcms->acpi_nvdimm_state.is_enabled) {
+        error_setg(&local_err,
+                   "nvdimm is not enabled: missing 'nvdimm' in '-M'");
+        goto out;
+    }
+
     pc_dimm_memory_plug(dev, &pcms->hotplug_memory, mr, align, &local_err);
     if (local_err) {
         goto out;
     }
 
-    if (object_dynamic_cast(OBJECT(dev), TYPE_NVDIMM)) {
-        if (!pcms->acpi_nvdimm_state.is_enabled) {
-            error_setg(&local_err,
-                       "nvdimm is not enabled: missing 'nvdimm' in '-M'");
-            goto out;
-        }
+    if (is_nvdimm) {
         nvdimm_plug(&pcms->acpi_nvdimm_state);
     }
 

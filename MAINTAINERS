@@ -299,7 +299,7 @@ F: target/ppc/kvm.c
 
 S390
 M: Christian Borntraeger <borntraeger@de.ibm.com>
-M: Cornelia Huck <cornelia.huck@de.ibm.com>
+M: Cornelia Huck <cohuck@redhat.com>
 M: Alexander Graf <agraf@suse.de>
 S: Maintained
 F: target/s390x/kvm.c
@@ -778,7 +778,7 @@ F: include/hw/sparc/grlib.h
 S390 Machines
 -------------
 S390 Virtio-ccw
-M: Cornelia Huck <cornelia.huck@de.ibm.com>
+M: Cornelia Huck <cohuck@redhat.com>
 M: Christian Borntraeger <borntraeger@de.ibm.com>
 M: Alexander Graf <agraf@suse.de>
 S: Supported
@@ -1006,7 +1006,7 @@ F: hw/vfio/*
 F: include/hw/vfio/
 
 vfio-ccw
-M: Cornelia Huck <cornelia.huck@de.ibm.com>
+M: Cornelia Huck <cohuck@redhat.com>
 S: Supported
 F: hw/vfio/ccw.c
 F: hw/s390x/s390-ccw.c
@@ -1048,7 +1048,7 @@ F: tests/virtio-blk-test.c
 T: git git://github.com/stefanha/qemu.git block
 
 virtio-ccw
-M: Cornelia Huck <cornelia.huck@de.ibm.com>
+M: Cornelia Huck <cohuck@redhat.com>
 M: Christian Borntraeger <borntraeger@de.ibm.com>
 S: Supported
 F: hw/s390x/virtio-ccw.[hc]
@@ -1411,8 +1411,7 @@ F: include/qapi/qmp/
 X: include/qapi/qmp/dispatch.h
 F: scripts/coccinelle/qobject.cocci
 F: tests/check-qdict.c
-F: tests/check-qfloat.c
-F: tests/check-qint.c
+F: tests/check-qnum.c
 F: tests/check-qjson.c
 F: tests/check-qlist.c
 F: tests/check-qstring.c
@@ -1490,7 +1489,7 @@ F: tests/vmstate-static-checker-data/
 F: docs/migration.txt
 
 Seccomp
-M: Eduardo Otubo <eduardo.otubo@profitbricks.com>
+M: Eduardo Otubo <otubo@redhat.com>
 S: Supported
 F: qemu-seccomp.c
 F: include/sysemu/seccomp.h
@@ -1858,12 +1857,14 @@ Build and test automation
 -------------------------
 M: Alex Bennée <alex.bennee@linaro.org>
 M: Fam Zheng <famz@redhat.com>
+R: Philippe Mathieu-Daudé <f4bug@amsat.org>
 L: qemu-devel@nongnu.org
 S: Maintained
 F: .travis.yml
 F: .shippable.yml
 F: tests/docker/
 W: https://travis-ci.org/qemu/qemu
+W: https://app.shippable.com/github/qemu/qemu
 W: http://patchew.org/QEMU/
 
 Documentation

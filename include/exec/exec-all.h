@@ -82,6 +82,9 @@ void cpu_reloading_memory_map(void);
  * Note that with KVM only one address space is supported.
  */
 void cpu_address_space_init(CPUState *cpu, AddressSpace *as, int asidx);
+#endif
+
+#if !defined(CONFIG_USER_ONLY) && defined(CONFIG_TCG)
 /* cputlb.c */
 /**
  * tlb_flush_page:
@@ -301,7 +304,7 @@ static inline void tlb_flush_by_mmuidx_all_cpus_synced(CPUState *cpu,
 #define CODE_GEN_AVG_BLOCK_SIZE 150
 #endif
 
-#if defined(__arm__) || defined(_ARCH_PPC) \
+#if defined(_ARCH_PPC) \
     || defined(__x86_64__) || defined(__i386__) \
     || defined(__sparc__) || defined(__aarch64__) \
     || defined(__s390x__) || defined(__mips__) \
@@ -401,9 +404,6 @@ static inline void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
 #elif defined(__aarch64__)
 void aarch64_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr);
 #define tb_set_jmp_target1 aarch64_tb_set_jmp_target
-#elif defined(__arm__)
-void arm_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr);
-#define tb_set_jmp_target1 arm_tb_set_jmp_target
 #elif defined(__sparc__) || defined(__mips__)
 void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr);
 #else
@@ -469,6 +469,10 @@ extern uintptr_t tci_tb_ptr;
    is also the case that there are no host isas that contain a call insn
    smaller than 4 bytes, so we don't worry about special-casing this.  */
 #define GETPC_ADJ   2
+
+void tb_lock(void);
+void tb_unlock(void);
+void tb_lock_reset(void);
 
 #if !defined(CONFIG_USER_ONLY)
 

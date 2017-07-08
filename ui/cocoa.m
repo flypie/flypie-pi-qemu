@@ -35,6 +35,7 @@
 #include "sysemu/blockdev.h"
 #include "qemu-version.h"
 #include <Carbon/Carbon.h>
+#include "qom/cpu.h"
 
 #ifndef MAC_OS_X_VERSION_10_5
 #define MAC_OS_X_VERSION_10_5 1050
@@ -52,6 +53,8 @@
 /* macOS 10.12 deprecated many constants, #define the new names for older SDKs */
 #if MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_12
 #define NSEventMaskAny                  NSAnyEventMask
+#define NSEventModifierFlagCapsLock     NSAlphaShiftKeyMask
+#define NSEventModifierFlagShift        NSShiftKeyMask
 #define NSEventModifierFlagCommand      NSCommandKeyMask
 #define NSEventModifierFlagControl      NSControlKeyMask
 #define NSEventModifierFlagOption       NSAlternateKeyMask
@@ -268,7 +271,7 @@ static void handleAnyDeviceErrors(Error * err)
     NSWindow *fullScreenWindow;
     float cx,cy,cw,ch,cdx,cdy;
     CGDataProviderRef dataProviderRef;
-    int modifiers_state[256];
+    BOOL modifiers_state[256];
     BOOL isMouseGrabbed;
     BOOL isFullscreen;
     BOOL isAbsoluteEnabled;
@@ -536,18 +539,59 @@ QemuCocoaView *cocoaView;
     }
 }
 
+- (void) toggleModifier: (int)keycode {
+    // Toggle the stored state.
+    modifiers_state[keycode] = !modifiers_state[keycode];
+    // Send a keyup or keydown depending on the state.
+    qemu_input_event_send_key_qcode(dcl->con, keycode, modifiers_state[keycode]);
+}
+
+- (void) toggleStatefulModifier: (int)keycode {
+    // Toggle the stored state.
+    modifiers_state[keycode] = !modifiers_state[keycode];
+    // Generate keydown and keyup.
+    qemu_input_event_send_key_qcode(dcl->con, keycode, true);
+    qemu_input_event_send_key_qcode(dcl->con, keycode, false);
+}
+
 - (void) handleEvent:(NSEvent *)event
 {
     COCOA_DEBUG("QemuCocoaView: handleEvent\n");
 
     int buttons = 0;
-    int keycode;
+    int keycode = 0;
     bool mouse_event = false;
     NSPoint p = [event locationInWindow];
 
     switch ([event type]) {
         case NSEventTypeFlagsChanged:
-            keycode = cocoa_keycode_to_qemu([event keyCode]);
+            if ([event keyCode] == 0) {
+                // When the Cocoa keyCode is zero that means keys should be
+                // synthesized based on the values in in the eventModifiers
+                // bitmask.
+
+                if (qemu_console_is_graphic(NULL)) {
+                    NSUInteger modifiers = [event modifierFlags];
+
+                    if (!!(modifiers & NSEventModifierFlagCapsLock) != !!modifiers_state[Q_KEY_CODE_CAPS_LOCK]) {
+                        [self toggleStatefulModifier:Q_KEY_CODE_CAPS_LOCK];
+                    }
+                    if (!!(modifiers & NSEventModifierFlagShift) != !!modifiers_state[Q_KEY_CODE_SHIFT]) {
+                        [self toggleModifier:Q_KEY_CODE_SHIFT];
+                    }
+                    if (!!(modifiers & NSEventModifierFlagControl) != !!modifiers_state[Q_KEY_CODE_CTRL]) {
+                        [self toggleModifier:Q_KEY_CODE_CTRL];
+                    }
+                    if (!!(modifiers & NSEventModifierFlagOption) != !!modifiers_state[Q_KEY_CODE_ALT]) {
+                        [self toggleModifier:Q_KEY_CODE_ALT];
+                    }
+                    if (!!(modifiers & NSEventModifierFlagCommand) != !!modifiers_state[Q_KEY_CODE_META_L]) {
+                        [self toggleModifier:Q_KEY_CODE_META_L];
+                    }
+                }
+            } else {
+                keycode = cocoa_keycode_to_qemu([event keyCode]);
+            }
 
             if ((keycode == Q_KEY_CODE_META_L || keycode == Q_KEY_CODE_META_R)
                && !isMouseGrabbed) {
@@ -559,16 +603,9 @@ QemuCocoaView *cocoaView;
                 // emulate caps lock and num lock keydown and keyup
                 if (keycode == Q_KEY_CODE_CAPS_LOCK ||
                     keycode == Q_KEY_CODE_NUM_LOCK) {
-                    qemu_input_event_send_key_qcode(dcl->con, keycode, true);
-                    qemu_input_event_send_key_qcode(dcl->con, keycode, false);
+                    [self toggleStatefulModifier:keycode];
                 } else if (qemu_console_is_graphic(NULL)) {
-                    if (modifiers_state[keycode] == 0) { // keydown
-                        qemu_input_event_send_key_qcode(dcl->con, keycode, true);
-                        modifiers_state[keycode] = 1;
-                    } else { // keyup
-                        qemu_input_event_send_key_qcode(dcl->con, keycode, false);
-                        modifiers_state[keycode] = 0;
-                    }
+                  [self toggleModifier:keycode];
                 }
             }
 
@@ -857,6 +894,7 @@ QemuCocoaView *cocoaView;
 - (void)openDocumentation:(NSString *)filename;
 - (IBAction) do_about_menu_item: (id) sender;
 - (void)make_about_window;
+- (void)adjustSpeed:(id)sender;
 @end
 
 @implementation QemuCocoaAppController
@@ -1263,6 +1301,34 @@ QemuCocoaView *cocoaView;
     [superView addSubview: copyright_label];
 }
 
+/* Used by the Speed menu items */
+- (void)adjustSpeed:(id)sender
+{
+    int throttle_pct; /* throttle percentage */
+    NSMenu *menu;
+
+    menu = [sender menu];
+    if (menu != nil)
+    {
+        /* Unselect the currently selected item */
+        for (NSMenuItem *item in [menu itemArray]) {
+            if (item.state == NSOnState) {
+                [item setState: NSOffState];
+                break;
+            }
+        }
+    }
+
+    // check the menu item
+    [sender setState: NSOnState];
+
+    // get the throttle percentage
+    throttle_pct = [sender tag];
+
+    cpu_throttle_set(throttle_pct);
+    COCOA_DEBUG("cpu throttling at %d%c\n", cpu_throttle_get_percentage(), '%');
+}
+
 @end
 
 
@@ -1342,6 +1408,32 @@ int main (int argc, const char * argv[]) {
     [menu addItem: [[[NSMenuItem alloc] initWithTitle:@"Enter Fullscreen" action:@selector(doToggleFullScreen:) keyEquivalent:@"f"] autorelease]]; // Fullscreen
     [menu addItem: [[[NSMenuItem alloc] initWithTitle:@"Zoom To Fit" action:@selector(zoomToFit:) keyEquivalent:@""] autorelease]];
     menuItem = [[[NSMenuItem alloc] initWithTitle:@"View" action:nil keyEquivalent:@""] autorelease];
+    [menuItem setSubmenu:menu];
+    [[NSApp mainMenu] addItem:menuItem];
+
+    // Speed menu
+    menu = [[NSMenu alloc] initWithTitle:@"Speed"];
+
+    // Add the rest of the Speed menu items
+    int p, percentage, throttle_pct;
+    for (p = 10; p >= 0; p--)
+    {
+        percentage = p * 10 > 1 ? p * 10 : 1; // prevent a 0% menu item
+
+        menuItem = [[[NSMenuItem alloc]
+                   initWithTitle: [NSString stringWithFormat: @"%d%%", percentage] action:@selector(adjustSpeed:) keyEquivalent:@""] autorelease];
+
+        if (percentage == 100) {
+            [menuItem setState: NSOnState];
+        }
+
+        /* Calculate the throttle percentage */
+        throttle_pct = -1 * percentage + 100;
+
+        [menuItem setTag: throttle_pct];
+        [menu addItem: menuItem];
+    }
+    menuItem = [[[NSMenuItem alloc] initWithTitle:@"Speed" action:nil keyEquivalent:@""] autorelease];
     [menuItem setSubmenu:menu];
     [[NSApp mainMenu] addItem:menuItem];
 

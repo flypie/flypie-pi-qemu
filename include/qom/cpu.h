@@ -346,7 +346,7 @@ struct CPUState {
 
     void *env_ptr; /* CPUArchState */
 
-    /* Writes protected by tb_lock, reads not thread-safe  */
+    /* Accessed in parallel; all accesses must be atomic */
     struct TranslationBlock *tb_jmp_cache[TB_JMP_CACHE_SIZE];
 
     struct GDBRegisterState *gdb_regs;
@@ -369,7 +369,6 @@ struct CPUState {
     vaddr mem_io_vaddr;
 
     int kvm_fd;
-    bool kvm_vcpu_dirty;
     struct KVMState *kvm_state;
     struct kvm_run *kvm_run;
 
@@ -386,6 +385,9 @@ struct CPUState {
     uint32_t can_do_io;
     int32_t exception_index; /* used by m68k TCG */
 
+    /* shared by kvm, hax and hvf */
+    bool vcpu_dirty;
+
     /* Used to keep track of an outstanding cpu throttle thread for migration
      * autoconverge
      */
@@ -400,7 +402,6 @@ struct CPUState {
         icount_decr_u16 u16;
     } icount_decr;
 
-    bool hax_vcpu_dirty;
     struct hax_vcpu_state *hax_vcpu;
 
     /* The pending_tlb_flush flag is set and cleared atomically to
@@ -421,6 +422,15 @@ extern struct CPUTailQ cpus;
 #define first_cpu QTAILQ_FIRST(&cpus)
 
 extern __thread CPUState *current_cpu;
+
+static inline void cpu_tb_jmp_cache_clear(CPUState *cpu)
+{
+    unsigned int i;
+
+    for (i = 0; i < TB_JMP_CACHE_SIZE; i++) {
+        atomic_set(&cpu->tb_jmp_cache[i], NULL);
+    }
+}
 
 /**
  * qemu_tcg_mttcg_enabled:
@@ -807,6 +817,8 @@ void cpu_interrupt(CPUState *cpu, int mask);
 
 #endif /* USER_ONLY */
 
+#ifdef NEED_CPU_H
+
 #ifdef CONFIG_SOFTMMU
 static inline void cpu_unassigned_access(CPUState *cpu, hwaddr addr,
                                          bool is_write, bool is_exec,
@@ -828,6 +840,8 @@ static inline void cpu_unaligned_access(CPUState *cpu, vaddr addr,
     cc->do_unaligned_access(cpu, addr, access_type, mmu_idx, retaddr);
 }
 #endif
+
+#endif /* NEED_CPU_H */
 
 /**
  * cpu_set_pc:
@@ -1005,6 +1019,8 @@ void cpu_exec_initfn(CPUState *cpu);
 void cpu_exec_realizefn(CPUState *cpu, Error **errp);
 void cpu_exec_unrealizefn(CPUState *cpu);
 
+#ifdef NEED_CPU_H
+
 #ifdef CONFIG_SOFTMMU
 extern const struct VMStateDescription vmstate_cpu_common;
 #else
@@ -1018,6 +1034,8 @@ extern const struct VMStateDescription vmstate_cpu_common;
     .flags = VMS_STRUCT,                                                    \
     .offset = 0,                                                            \
 }
+
+#endif /* NEED_CPU_H */
 
 #define UNASSIGNED_CPU_INDEX -1
 

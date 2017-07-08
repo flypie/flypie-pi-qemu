@@ -37,7 +37,6 @@
 #include "qapi/qobject-output-visitor.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qjson.h"
-#include "qapi/qmp/qint.h"
 #include "qapi/qmp/qstring.h"
 #include "qemu/cutils.h"
 
@@ -65,11 +64,11 @@ static int nbd_parse_uri(const char *filename, QDict *options)
     }
 
     /* transport */
-    if (!strcmp(uri->scheme, "nbd")) {
+    if (!g_strcmp0(uri->scheme, "nbd")) {
         is_unix = false;
-    } else if (!strcmp(uri->scheme, "nbd+tcp")) {
+    } else if (!g_strcmp0(uri->scheme, "nbd+tcp")) {
         is_unix = false;
-    } else if (!strcmp(uri->scheme, "nbd+unix")) {
+    } else if (!g_strcmp0(uri->scheme, "nbd+unix")) {
         is_unix = true;
     } else {
         ret = -EINVAL;

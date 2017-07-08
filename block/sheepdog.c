@@ -16,7 +16,6 @@
 #include "qapi-visit.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
-#include "qapi/qmp/qint.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qemu/uri.h"
 #include "qemu/error-report.h"
@@ -698,7 +697,8 @@ out:
 
     srco->co = NULL;
     srco->ret = ret;
-    srco->finished = true;
+    /* Set srco->finished before reading bs->wakeup.  */
+    atomic_mb_set(&srco->finished, true);
     if (srco->bs) {
         bdrv_wakeup(srco->bs);
     }
@@ -1046,11 +1046,11 @@ static void sd_parse_uri(SheepdogConfig *cfg, const char *filename,
     }
 
     /* transport */
-    if (!strcmp(uri->scheme, "sheepdog")) {
+    if (!g_strcmp0(uri->scheme, "sheepdog")) {
         is_unix = false;
-    } else if (!strcmp(uri->scheme, "sheepdog+tcp")) {
+    } else if (!g_strcmp0(uri->scheme, "sheepdog+tcp")) {
         is_unix = false;
-    } else if (!strcmp(uri->scheme, "sheepdog+unix")) {
+    } else if (!g_strcmp0(uri->scheme, "sheepdog+unix")) {
         is_unix = true;
     } else {
         error_setg(&err, "URI scheme must be 'sheepdog', 'sheepdog+tcp',"
@@ -2935,7 +2935,7 @@ static int sd_load_vmstate(BlockDriverState *bs, QEMUIOVector *qiov,
 
 
 static coroutine_fn int sd_co_pdiscard(BlockDriverState *bs, int64_t offset,
-                                      int count)
+                                      int bytes)
 {
     SheepdogAIOCB acb;
     BDRVSheepdogState *s = bs->opaque;
@@ -2953,11 +2953,11 @@ static coroutine_fn int sd_co_pdiscard(BlockDriverState *bs, int64_t offset,
     iov.iov_len = sizeof(zero);
     discard_iov.iov = &iov;
     discard_iov.niov = 1;
-    if (!QEMU_IS_ALIGNED(offset | count, BDRV_SECTOR_SIZE)) {
+    if (!QEMU_IS_ALIGNED(offset | bytes, BDRV_SECTOR_SIZE)) {
         return -ENOTSUP;
     }
     sd_aio_setup(&acb, s, &discard_iov, offset >> BDRV_SECTOR_BITS,
-                 count >> BDRV_SECTOR_BITS, AIOCB_DISCARD_OBJ);
+                 bytes >> BDRV_SECTOR_BITS, AIOCB_DISCARD_OBJ);
     sd_co_rw_vector(&acb);
     sd_aio_complete(&acb);
 

@@ -43,6 +43,7 @@
 #include "exec/ramlist.h"
 #include "hw/intc/intc.h"
 #include "migration/snapshot.h"
+#include "migration/misc.h"
 
 #ifdef CONFIG_SPICE
 #include <spice/enums.h>
@@ -163,6 +164,8 @@ void hmp_info_migrate(Monitor *mon, const QDict *qdict)
 
     info = qmp_query_migrate(NULL);
     caps = qmp_query_migrate_capabilities(NULL);
+
+    migration_global_dump(mon);
 
     /* do not display parameters during setup */
     if (info->has_status && caps) {
@@ -2230,6 +2233,14 @@ void hmp_chardev_remove(Monitor *mon, const QDict *qdict)
     Error *local_err = NULL;
 
     qmp_chardev_remove(qdict_get_str(qdict, "id"), &local_err);
+    hmp_handle_error(mon, &local_err);
+}
+
+void hmp_chardev_send_break(Monitor *mon, const QDict *qdict)
+{
+    Error *local_err = NULL;
+
+    qmp_chardev_send_break(qdict_get_str(qdict, "id"), &local_err);
     hmp_handle_error(mon, &local_err);
 }
 

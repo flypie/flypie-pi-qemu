@@ -129,6 +129,7 @@ typedef struct HDGeometry {
  * BDRV_BLOCK_OFFSET_VALID: an associated offset exists for accessing raw data
  * BDRV_BLOCK_ALLOCATED: the content of the block is determined by this
  *                       layer (short for DATA || ZERO), set by block layer
+ * BDRV_BLOCK_EOF: the returned pnum covers through end of file for this layer
  *
  * Internal flag:
  * BDRV_BLOCK_RAW: used internally to indicate that the request was
@@ -157,6 +158,7 @@ typedef struct HDGeometry {
 #define BDRV_BLOCK_OFFSET_VALID 0x04
 #define BDRV_BLOCK_RAW          0x08
 #define BDRV_BLOCK_ALLOCATED    0x10
+#define BDRV_BLOCK_EOF          0x20
 #define BDRV_BLOCK_OFFSET_MASK  BDRV_SECTOR_MASK
 
 typedef QSIMPLEQ_HEAD(BlockReopenQueue, BlockReopenQueueEntry) BlockReopenQueue;
@@ -276,7 +278,7 @@ int bdrv_read(BdrvChild *child, int64_t sector_num,
 int bdrv_write(BdrvChild *child, int64_t sector_num,
                const uint8_t *buf, int nb_sectors);
 int bdrv_pwrite_zeroes(BdrvChild *child, int64_t offset,
-                       int count, BdrvRequestFlags flags);
+                       int bytes, BdrvRequestFlags flags);
 int bdrv_make_zero(BdrvChild *child, BdrvRequestFlags flags);
 int bdrv_pread(BdrvChild *child, int64_t offset, void *buf, int bytes);
 int bdrv_preadv(BdrvChild *child, int64_t offset, QEMUIOVector *qiov);
@@ -295,7 +297,7 @@ int coroutine_fn bdrv_co_writev(BdrvChild *child, int64_t sector_num,
  * because it may allocate memory for the entire region.
  */
 int coroutine_fn bdrv_co_pwrite_zeroes(BdrvChild *child, int64_t offset,
-                                       int count, BdrvRequestFlags flags);
+                                       int bytes, BdrvRequestFlags flags);
 BlockDriverState *bdrv_find_backing_image(BlockDriverState *bs,
     const char *backing_file);
 int bdrv_get_backing_file_depth(BlockDriverState *bs);
@@ -353,14 +355,6 @@ BlockDriverState *check_to_replace_node(BlockDriverState *parent_bs,
                                         const char *node_name, Error **errp);
 
 /* async block I/O */
-BlockAIOCB *bdrv_aio_readv(BdrvChild *child, int64_t sector_num,
-                           QEMUIOVector *iov, int nb_sectors,
-                           BlockCompletionFunc *cb, void *opaque);
-BlockAIOCB *bdrv_aio_writev(BdrvChild *child, int64_t sector_num,
-                            QEMUIOVector *iov, int nb_sectors,
-                            BlockCompletionFunc *cb, void *opaque);
-BlockAIOCB *bdrv_aio_flush(BlockDriverState *bs,
-                           BlockCompletionFunc *cb, void *opaque);
 void bdrv_aio_cancel(BlockAIOCB *acb);
 void bdrv_aio_cancel_async(BlockAIOCB *acb);
 
@@ -402,7 +396,8 @@ void bdrv_drain_all(void);
          * block_job_defer_to_main_loop for how to do it). \
          */                                                \
         assert(!bs_->wakeup);                              \
-        bs_->wakeup = true;                                \
+        /* Set bs->wakeup before evaluating cond.  */      \
+        atomic_mb_set(&bs_->wakeup, true);                 \
         while (busy_) {                                    \
             if ((cond)) {                                  \
                 waited_ = busy_ = true;                    \
@@ -414,12 +409,12 @@ void bdrv_drain_all(void);
                 waited_ |= busy_;                          \
             }                                              \
         }                                                  \
-        bs_->wakeup = false;                               \
+        atomic_set(&bs_->wakeup, false);                   \
     }                                                      \
     waited_; })
 
-int bdrv_pdiscard(BlockDriverState *bs, int64_t offset, int count);
-int bdrv_co_pdiscard(BlockDriverState *bs, int64_t offset, int count);
+int bdrv_pdiscard(BlockDriverState *bs, int64_t offset, int bytes);
+int bdrv_co_pdiscard(BlockDriverState *bs, int64_t offset, int bytes);
 int bdrv_has_zero_init_1(BlockDriverState *bs);
 int bdrv_has_zero_init(BlockDriverState *bs);
 bool bdrv_unallocated_blocks_are_zero(BlockDriverState *bs);

@@ -118,6 +118,11 @@ __thread CPUState *current_cpu;
    2 = Adaptive rate instruction counting.  */
 int use_icount;
 
+uintptr_t qemu_host_page_size;
+intptr_t qemu_host_page_mask;
+uintptr_t qemu_real_host_page_size;
+intptr_t qemu_real_host_page_mask;
+
 bool set_preferred_target_page_bits(int bits)
 {
     /* The target page size is the lowest common denominator for all
@@ -1482,25 +1487,17 @@ static int64_t get_file_size(int fd)
     return size;
 }
 
-static void *file_ram_alloc(RAMBlock *block,
-                            ram_addr_t memory,
-                            const char *path,
-                            Error **errp)
+static int file_ram_open(const char *path,
+                         const char *region_name,
+                         bool *created,
+                         Error **errp)
 {
-    bool unlink_on_error = false;
     char *filename;
     char *sanitized_name;
     char *c;
-    void *area = MAP_FAILED;
     int fd = -1;
-    int64_t file_size;
 
-    if (kvm_enabled() && !kvm_has_sync_mmu()) {
-        error_setg(errp,
-                   "host lacks kvm mmu notifiers, -mem-path unsupported");
-        return NULL;
-    }
-
+    *created = false;
     for (;;) {
         fd = open(path, O_RDWR);
         if (fd >= 0) {
@@ -1511,13 +1508,13 @@ static void *file_ram_alloc(RAMBlock *block,
             /* @path names a file that doesn't exist, create it */
             fd = open(path, O_RDWR | O_CREAT | O_EXCL, 0644);
             if (fd >= 0) {
-                unlink_on_error = true;
+                *created = true;
                 break;
             }
         } else if (errno == EISDIR) {
             /* @path names a directory, create a file there */
             /* Make name safe to use with mkstemp by replacing '/' with '_'. */
-            sanitized_name = g_strdup(memory_region_name(block->mr));
+            sanitized_name = g_strdup(region_name);
             for (c = sanitized_name; *c != '\0'; c++) {
                 if (*c == '/') {
                     *c = '_';
@@ -1540,13 +1537,24 @@ static void *file_ram_alloc(RAMBlock *block,
             error_setg_errno(errp, errno,
                              "can't open backing store %s for guest RAM",
                              path);
-            goto error;
+            return -1;
         }
         /*
          * Try again on EINTR and EEXIST.  The latter happens when
          * something else creates the file between our two open().
          */
     }
+
+    return fd;
+}
+
+static void *file_ram_alloc(RAMBlock *block,
+                            ram_addr_t memory,
+                            int fd,
+                            bool truncate,
+                            Error **errp)
+{
+    void *area;
 
     block->page_size = qemu_fd_getpagesize(fd);
     block->mr->align = block->page_size;
@@ -1556,20 +1564,11 @@ static void *file_ram_alloc(RAMBlock *block,
     }
 #endif
 
-    file_size = get_file_size(fd);
-
     if (memory < block->page_size) {
         error_setg(errp, "memory size 0x" RAM_ADDR_FMT " must be equal to "
                    "or larger than page size 0x%zx",
                    memory, block->page_size);
-        goto error;
-    }
-
-    if (file_size > 0 && file_size < memory) {
-        error_setg(errp, "backing store %s size 0x%" PRIx64
-                   " does not match 'size' option 0x" RAM_ADDR_FMT,
-                   path, file_size, memory);
-        goto error;
+        return NULL;
     }
 
     memory = ROUND_UP(memory, block->page_size);
@@ -1588,7 +1587,7 @@ static void *file_ram_alloc(RAMBlock *block,
      * those labels. Therefore, extending the non-empty backend file
      * is disabled as well.
      */
-    if (!file_size && ftruncate(fd, memory)) {
+    if (truncate && ftruncate(fd, memory)) {
         perror("ftruncate");
     }
 
@@ -1597,30 +1596,19 @@ static void *file_ram_alloc(RAMBlock *block,
     if (area == MAP_FAILED) {
         error_setg_errno(errp, errno,
                          "unable to map backing store for guest RAM");
-        goto error;
+        return NULL;
     }
 
     if (mem_prealloc) {
         os_mem_prealloc(fd, area, memory, smp_cpus, errp);
         if (errp && *errp) {
-            goto error;
+            qemu_ram_munmap(area, memory);
+            return NULL;
         }
     }
 
     block->fd = fd;
     return area;
-
-error:
-    if (area != MAP_FAILED) {
-        qemu_ram_munmap(area, memory);
-    }
-    if (unlink_on_error) {
-        unlink(path);
-    }
-    if (fd != -1) {
-        close(fd);
-    }
-    return NULL;
 }
 #endif
 
@@ -1931,15 +1919,22 @@ static void ram_block_add(RAMBlock *new_block, Error **errp)
 }
 
 #ifdef __linux__
-RAMBlock *qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
-                                   bool share, const char *mem_path,
-                                   Error **errp)
+RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, MemoryRegion *mr,
+                                 bool share, int fd,
+                                 Error **errp)
 {
     RAMBlock *new_block;
     Error *local_err = NULL;
+    int64_t file_size;
 
     if (xen_enabled()) {
         error_setg(errp, "-mem-path not supported with Xen");
+        return NULL;
+    }
+
+    if (kvm_enabled() && !kvm_has_sync_mmu()) {
+        error_setg(errp,
+                   "host lacks kvm mmu notifiers, -mem-path unsupported");
         return NULL;
     }
 
@@ -1955,13 +1950,20 @@ RAMBlock *qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
     }
 
     size = HOST_PAGE_ALIGN(size);
+    file_size = get_file_size(fd);
+    if (file_size > 0 && file_size < size) {
+        error_setg(errp, "backing store %s size 0x%" PRIx64
+                   " does not match 'size' option 0x" RAM_ADDR_FMT,
+                   mem_path, file_size, size);
+        return NULL;
+    }
+
     new_block = g_malloc0(sizeof(*new_block));
     new_block->mr = mr;
     new_block->used_length = size;
     new_block->max_length = size;
     new_block->flags = share ? RAM_SHARED : 0;
-    new_block->host = file_ram_alloc(new_block, size,
-                                     mem_path, errp);
+    new_block->host = file_ram_alloc(new_block, size, fd, !file_size, errp);
     if (!new_block->host) {
         g_free(new_block);
         return NULL;
@@ -1974,6 +1976,33 @@ RAMBlock *qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
         return NULL;
     }
     return new_block;
+
+}
+
+
+RAMBlock *qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
+                                   bool share, const char *mem_path,
+                                   Error **errp)
+{
+    int fd;
+    bool created;
+    RAMBlock *block;
+
+    fd = file_ram_open(mem_path, memory_region_name(mr), &created, errp);
+    if (fd < 0) {
+        return NULL;
+    }
+
+    block = qemu_ram_alloc_from_fd(size, mr, share, fd, errp);
+    if (!block) {
+        if (created) {
+            unlink(mem_path);
+        }
+        close(fd);
+        return NULL;
+    }
+
+    return block;
 }
 #endif
 
@@ -2288,6 +2317,7 @@ static void notdirty_mem_write(void *opaque, hwaddr ram_addr,
 {
     bool locked = false;
 
+    assert(tcg_enabled());
     if (!cpu_physical_memory_get_dirty_flag(ram_addr, DIRTY_MEMORY_CODE)) {
         locked = true;
         tb_lock();
@@ -2346,6 +2376,7 @@ static void check_watchpoint(int offset, int len, MemTxAttrs attrs, int flags)
     CPUWatchpoint *wp;
     uint32_t cpu_flags;
 
+    assert(tcg_enabled());
     if (cpu->watchpoint_hit) {
         /* We re-entered the check after replacing the TB. Now raise
          * the debug interrupt so that is will trigger after the
@@ -2791,6 +2822,7 @@ static void invalidate_and_set_dirty(MemoryRegion *mr, hwaddr addr,
             cpu_physical_memory_range_includes_clean(addr, length, dirty_log_mask);
     }
     if (dirty_log_mask & (1 << DIRTY_MEMORY_CODE)) {
+        assert(tcg_enabled());
         tb_lock();
         tb_invalidate_phys_range(addr, addr + length);
         tb_unlock();
@@ -3566,3 +3598,18 @@ err:
 }
 
 #endif
+
+void page_size_init(void)
+{
+    /* NOTE: we can always suppose that qemu_host_page_size >=
+       TARGET_PAGE_SIZE */
+    qemu_real_host_page_size = getpagesize();
+    qemu_real_host_page_mask = -(intptr_t)qemu_real_host_page_size;
+    if (qemu_host_page_size == 0) {
+        qemu_host_page_size = qemu_real_host_page_size;
+    }
+    if (qemu_host_page_size < TARGET_PAGE_SIZE) {
+        qemu_host_page_size = TARGET_PAGE_SIZE;
+    }
+    qemu_host_page_mask = -(intptr_t)qemu_host_page_size;
+}
