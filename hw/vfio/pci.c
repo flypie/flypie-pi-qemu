@@ -257,7 +257,7 @@ static void vfio_intx_update(PCIDevice *pdev)
 static int vfio_intx_enable(VFIOPCIDevice *vdev, Error **errp)
 {
     uint8_t pin = vfio_pci_read_config(&vdev->pdev, PCI_INTERRUPT_PIN, 1);
-    int ret, argsz;
+    int ret, argsz, retval = 0;
     struct vfio_irq_set *irq_set;
     int32_t *pfd;
     Error *err = NULL;
@@ -302,12 +302,12 @@ static int vfio_intx_enable(VFIOPCIDevice *vdev, Error **errp)
     qemu_set_fd_handler(*pfd, vfio_intx_interrupt, NULL, vdev);
 
     ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_SET_IRQS, irq_set);
-    g_free(irq_set);
     if (ret) {
         error_setg_errno(errp, -ret, "failed to setup INTx fd");
         qemu_set_fd_handler(*pfd, NULL, NULL, vdev);
         event_notifier_cleanup(&vdev->intx.interrupt);
-        return -errno;
+        retval = -errno;
+        goto cleanup;
     }
 
     vfio_intx_enable_kvm(vdev, &err);
@@ -319,7 +319,10 @@ static int vfio_intx_enable(VFIOPCIDevice *vdev, Error **errp)
 
     trace_vfio_intx_enable(vdev->vbasedev.name);
 
-    return 0;
+cleanup:
+    g_free(irq_set);
+
+    return retval;
 }
 
 static void vfio_intx_disable(VFIOPCIDevice *vdev)
@@ -1743,6 +1746,18 @@ static int vfio_setup_pcie_cap(VFIOPCIDevice *vdev, int pos, uint8_t size,
                                PCI_EXP_LNKCAP_MLW | PCI_EXP_LNKCAP_SLS);
     }
 
+    /*
+     * Intel 82599 SR-IOV VFs report an invalid PCIe capability version 0
+     * (Niantic errate #35) causing Windows to error with a Code 10 for the
+     * device on Q35.  Fixup any such devices to report version 1.  If we
+     * were to remove the capability entirely the guest would lose extended
+     * config space.
+     */
+    if ((flags & PCI_EXP_FLAGS_VERS) == 0) {
+        vfio_add_emulated_word(vdev, pos + PCI_CAP_FLAGS,
+                               1, PCI_EXP_FLAGS_VERS);
+    }
+
     pos = pci_add_capability(&vdev->pdev, PCI_CAP_ID_EXP, pos, size,
                              errp);
     if (pos < 0) {
@@ -2116,7 +2131,8 @@ static int vfio_pci_hot_reset(VFIOPCIDevice *vdev, bool single)
 
         /* Prep dependent devices for reset and clear our marker. */
         QLIST_FOREACH(vbasedev_iter, &group->device_list, next) {
-            if (vbasedev_iter->type != VFIO_DEVICE_TYPE_PCI) {
+            if (!vbasedev_iter->dev->realized ||
+                vbasedev_iter->type != VFIO_DEVICE_TYPE_PCI) {
                 continue;
             }
             tmp = container_of(vbasedev_iter, VFIOPCIDevice, vbasedev);
@@ -2197,7 +2213,8 @@ out:
         }
 
         QLIST_FOREACH(vbasedev_iter, &group->device_list, next) {
-            if (vbasedev_iter->type != VFIO_DEVICE_TYPE_PCI) {
+            if (!vbasedev_iter->dev->realized ||
+                vbasedev_iter->type != VFIO_DEVICE_TYPE_PCI) {
                 continue;
             }
             tmp = container_of(vbasedev_iter, VFIOPCIDevice, vbasedev);
@@ -2647,6 +2664,7 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     vdev->vbasedev.name = g_strdup(basename(vdev->vbasedev.sysfsdev));
     vdev->vbasedev.ops = &vfio_pci_ops;
     vdev->vbasedev.type = VFIO_DEVICE_TYPE_PCI;
+    vdev->vbasedev.dev = &vdev->pdev.qdev;
 
     tmp = g_strdup_printf("%s/iommu_group", vdev->vbasedev.sysfsdev);
     len = readlink(tmp, group_path, sizeof(group_path));

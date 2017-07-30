@@ -8428,14 +8428,17 @@ POWERPC_FAMILY(POWER5P)(ObjectClass *oc, void *data)
 static void getset_compat_deprecated(Object *obj, Visitor *v, const char *name,
                                      void *opaque, Error **errp)
 {
+    QNull *null = NULL;
+
     if (!qtest_enabled()) {
         error_report("CPU 'compat' property is deprecated and has no effect; "
                      "use max-cpu-compat machine property instead");
     }
-    visit_type_null(v, name, NULL);
+    visit_type_null(v, name, &null, NULL);
+    QDECREF(null);
 }
 
-static PropertyInfo ppc_compat_deprecated_propinfo = {
+static const PropertyInfo ppc_compat_deprecated_propinfo = {
     .name = "str",
     .description = "compatibility mode (deprecated)",
     .get = getset_compat_deprecated,
@@ -9011,8 +9014,16 @@ void cpu_ppc_set_papr(PowerPCCPU *cpu, PPCVirtualHypervisor *vhyp)
         /* By default we choose legacy mode and switch to new hash or radix
          * when a register process table hcall is made. So disable process
          * tables and guest translation shootdown by default
+         *
+         * Hot-plugged CPUs inherit from the guest radix setting under
+         * KVM but not under TCG. Update the default LPCR to keep new
+         * CPUs in sync when radix is enabled.
          */
-        lpcr->default_value &= ~(LPCR_UPRT | LPCR_GTSE);
+        if (ppc64_radix_guest(cpu)) {
+            lpcr->default_value |= LPCR_UPRT | LPCR_GTSE;
+        } else {
+            lpcr->default_value &= ~(LPCR_UPRT | LPCR_GTSE);
+        }
         lpcr->default_value |= LPCR_PDEE | LPCR_HDEE | LPCR_EEE | LPCR_DEE |
                                LPCR_OEE;
         break;

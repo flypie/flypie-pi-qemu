@@ -75,7 +75,37 @@ static S390CPUDef s390_cpu_defs[] = {
     CPUDEF_INIT(0x2964, 13, 1, 47, 0x08000000U, "z13", "IBM z13 GA1"),
     CPUDEF_INIT(0x2964, 13, 2, 47, 0x08000000U, "z13.2", "IBM z13 GA2"),
     CPUDEF_INIT(0x2965, 13, 2, 47, 0x08000000U, "z13s", "IBM z13s GA1"),
+    CPUDEF_INIT(0x3906, 14, 1, 47, 0x08000000U, "z14", "IBM z14 GA1"),
 };
+
+/* features part of a base model but not relevant for finding a base model */
+S390FeatBitmap ignored_base_feat;
+
+void s390_cpudef_featoff(uint8_t gen, uint8_t ec_ga, S390Feat feat)
+{
+    const S390CPUDef *def;
+
+    def = s390_find_cpu_def(0, gen, ec_ga, NULL);
+    clear_bit(feat, (unsigned long *)&def->default_feat);
+}
+
+void s390_cpudef_featoff_greater(uint8_t gen, uint8_t ec_ga, S390Feat feat)
+{
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(s390_cpu_defs); i++) {
+        const S390CPUDef *def = &s390_cpu_defs[i];
+
+        if (def->gen < gen) {
+            continue;
+        }
+        if (def->gen == gen && def->ec_ga < ec_ga) {
+            continue;
+        }
+
+        clear_bit(feat, (unsigned long *)&def->default_feat);
+    }
+}
 
 uint32_t s390_get_hmfai(void)
 {
@@ -210,6 +240,11 @@ const S390CPUDef *s390_find_cpu_def(uint16_t type, uint8_t gen, uint8_t ec_ga,
         if (features) {
             /* see if the model satisfies the minimum features */
             bitmap_andnot(missing, def->base_feat, features, S390_FEAT_MAX);
+            /*
+             * Ignore certain features that are in the base model, but not
+             * relevant for the search (esp. MSA subfunctions).
+             */
+            bitmap_andnot(missing, missing, ignored_base_feat, S390_FEAT_MAX);
             if (!bitmap_empty(missing, S390_FEAT_MAX)) {
                 break;
             }
@@ -671,15 +706,41 @@ static void check_consistency(const S390CPUModel *model)
         { S390_FEAT_SIE_CMMA, S390_FEAT_CMM },
         { S390_FEAT_SIE_CMMA, S390_FEAT_SIE_GSLS },
         { S390_FEAT_SIE_PFMFI, S390_FEAT_EDAT },
+        { S390_FEAT_MSA_EXT_8, S390_FEAT_MSA_EXT_3 },
+        { S390_FEAT_MULTIPLE_EPOCH, S390_FEAT_TOD_CLOCK_STEERING },
+        { S390_FEAT_VECTOR_PACKED_DECIMAL, S390_FEAT_VECTOR },
+        { S390_FEAT_VECTOR_ENH, S390_FEAT_VECTOR },
+        { S390_FEAT_INSTRUCTION_EXEC_PROT, S390_FEAT_SIDE_EFFECT_ACCESS_ESOP2 },
+        { S390_FEAT_SIDE_EFFECT_ACCESS_ESOP2, S390_FEAT_ESOP },
+        { S390_FEAT_CMM_NT, S390_FEAT_CMM },
+        { S390_FEAT_GUARDED_STORAGE, S390_FEAT_SIDE_EFFECT_ACCESS_ESOP2 },
+        { S390_FEAT_MULTIPLE_EPOCH, S390_FEAT_STORE_CLOCK_FAST },
+        { S390_FEAT_MULTIPLE_EPOCH, S390_FEAT_TOD_CLOCK_STEERING },
+        { S390_FEAT_SEMAPHORE_ASSIST, S390_FEAT_STFLE_49 },
+        { S390_FEAT_KIMD_SHA3_224, S390_FEAT_MSA },
+        { S390_FEAT_KIMD_SHA3_256, S390_FEAT_MSA },
+        { S390_FEAT_KIMD_SHA3_384, S390_FEAT_MSA },
+        { S390_FEAT_KIMD_SHA3_512, S390_FEAT_MSA },
+        { S390_FEAT_KIMD_SHAKE_128, S390_FEAT_MSA },
+        { S390_FEAT_KIMD_SHAKE_256, S390_FEAT_MSA },
+        { S390_FEAT_KLMD_SHA3_224, S390_FEAT_MSA },
+        { S390_FEAT_KLMD_SHA3_256, S390_FEAT_MSA },
+        { S390_FEAT_KLMD_SHA3_384, S390_FEAT_MSA },
+        { S390_FEAT_KLMD_SHA3_512, S390_FEAT_MSA },
+        { S390_FEAT_KLMD_SHAKE_128, S390_FEAT_MSA },
+        { S390_FEAT_KLMD_SHAKE_256, S390_FEAT_MSA },
+        { S390_FEAT_PRNO_TRNG_QRTCR, S390_FEAT_MSA_EXT_5 },
+        { S390_FEAT_PRNO_TRNG, S390_FEAT_MSA_EXT_5 },
+        { S390_FEAT_SIE_KSS, S390_FEAT_SIE_F2 },
     };
     int i;
 
     for (i = 0; i < ARRAY_SIZE(dep); i++) {
         if (test_bit(dep[i][0], model->features) &&
             !test_bit(dep[i][1], model->features)) {
-            error_report("Warning: \'%s\' requires \'%s\'.",
-                         s390_feat_def(dep[i][0])->name,
-                         s390_feat_def(dep[i][1])->name);
+            warn_report("\'%s\' requires \'%s\'.",
+                        s390_feat_def(dep[i][0])->name,
+                        s390_feat_def(dep[i][1])->name);
         }
     }
 }
@@ -728,14 +789,19 @@ static void add_qemu_cpu_model_features(S390FeatBitmap fbm)
 {
     static const int feats[] = {
         S390_FEAT_DAT_ENH,
+        S390_FEAT_IDTE_SEGMENT,
         S390_FEAT_STFLE,
         S390_FEAT_EXTENDED_IMMEDIATE,
         S390_FEAT_EXTENDED_TRANSLATION_2,
+        S390_FEAT_EXTENDED_TRANSLATION_3,
         S390_FEAT_LONG_DISPLACEMENT,
         S390_FEAT_LONG_DISPLACEMENT_FAST,
         S390_FEAT_ETF2_ENH,
         S390_FEAT_STORE_CLOCK_FAST,
         S390_FEAT_MOVE_WITH_OPTIONAL_SPEC,
+        S390_FEAT_ETF3_ENH,
+        S390_FEAT_COMPARE_AND_SWAP_AND_STORE,
+        S390_FEAT_COMPARE_AND_SWAP_AND_STORE_2,
         S390_FEAT_GENERAL_INSTRUCTIONS_EXT,
         S390_FEAT_EXECUTE_EXT,
         S390_FEAT_FLOATING_POINT_SUPPPORT_ENH,
@@ -1152,9 +1218,34 @@ static const TypeInfo host_s390_cpu_type_info = {
 };
 #endif
 
+static void init_ignored_base_feat(void)
+{
+    static const int feats[] = {
+         /* MSA subfunctions that could not be available on certain machines */
+         S390_FEAT_KMAC_DEA,
+         S390_FEAT_KMAC_TDEA_128,
+         S390_FEAT_KMAC_TDEA_192,
+         S390_FEAT_KMC_DEA,
+         S390_FEAT_KMC_TDEA_128,
+         S390_FEAT_KMC_TDEA_192,
+         S390_FEAT_KM_DEA,
+         S390_FEAT_KM_TDEA_128,
+         S390_FEAT_KM_TDEA_192,
+         S390_FEAT_KIMD_SHA_1,
+         S390_FEAT_KLMD_SHA_1,
+    };
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(feats); i++) {
+        set_bit(feats[i], ignored_base_feat);
+    }
+}
+
 static void register_types(void)
 {
     int i;
+
+    init_ignored_base_feat();
 
     /* init all bitmaps from gnerated data initially */
     for (i = 0; i < ARRAY_SIZE(s390_cpu_defs); i++) {
